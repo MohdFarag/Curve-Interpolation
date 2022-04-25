@@ -8,6 +8,25 @@ from random import randint
 import time
 
 
+class TableView(QTableWidget):
+    def __init__(self,*args):
+        QTableWidget.__init__(self, *args)
+        self.resizeColumnsToContents()
+        self.resizeRowsToContents()
+        self.setColumnCount(3)
+        self.setHorizontalHeaderLabels(['Frequency','Magnitude','Phase'])
+ 
+    def addData(self, frequency, magnitude, phase): 
+        rowPosition = self.rowCount()
+
+        self.insertRow(rowPosition)
+        self.setItem(rowPosition , 0, QTableWidgetItem(f"{frequency}Hz"))
+        self.setItem(rowPosition , 1, QTableWidgetItem(f"{magnitude}"))
+        self.setItem(rowPosition , 2, QTableWidgetItem(f"{phase}°"))
+
+    def clearAllData(self):
+        self.setRowCount(0)
+        
 class QHLine(QFrame):
     def __init__(self):
         super(QHLine, self).__init__()
