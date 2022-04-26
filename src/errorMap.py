@@ -10,6 +10,8 @@ import numpy as np
 
 # Logging configuration
 import logging
+
+from sympy import false
 logging.basicConfig(filename="errlog.log",
                     filemode="a",
                     format="(%(asctime)s)  | %(name)s | %(levelname)s:%(message)s",
@@ -23,9 +25,7 @@ class MplCanvasErrorMap(FigureCanvasQTAgg):
         self.fig.set_edgecolor("white")
             
         self.axes = self.fig.add_subplot(111)
-        self.axes.set_title("Spectrogram", fontweight ="bold")
-        self.axes.set_xlabel("Time")
-        self.axes.set_ylabel("Frequency")
+        self.axes.set_title("Error Map", fontweight ="bold")
 
         # Color bar
         colormap = plt.cm.get_cmap("rainbow")
@@ -86,6 +86,14 @@ class MplCanvasErrorMap(FigureCanvasQTAgg):
 
     def set_data_channel(self, data_channel):
         self.data_channel = data_channel
+
+    def setAxesLabel(self,axes,title):
+        if axes=="x":
+            self.axes.set_xlabel(title)
+        elif axes=="y":
+            self.axes.set_ylabel(title)
+        else:
+            return False
 
     def plotSignal(self, fs):
         # try:

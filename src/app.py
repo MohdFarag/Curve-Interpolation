@@ -86,7 +86,8 @@ class Window(QMainWindow):
     
 
     def setTheme(self, theme):
-        pass
+        self.mainPlot.setMode(theme)
+        self.errorMapPlot.setMode(theme)
 
     # Menu
     def createMenuBar(self):
@@ -165,10 +166,14 @@ class Window(QMainWindow):
         mainPanel.addWidget(self.overlapBox)
 
         # Main Plot
+        plotLayout = QVBoxLayout()
+        latex = QLineEdit()
         self.mainPlot = MplCanvasPlotter("Main Plot")
+        plotLayout.addWidget(latex,1)
+        plotLayout.addWidget(self.mainPlot,10)
 
         mainLayout.addWidget(panelGroupBox,3)
-        mainLayout.addWidget(self.mainPlot,7)
+        mainLayout.addLayout(plotLayout,7)
 
         # Error map Layout
         mapLayout = QHBoxLayout()
@@ -208,8 +213,8 @@ class Window(QMainWindow):
 
         # Error Map Plot
         leftLayout = QVBoxLayout()
+        ErrorPrecent = QLineEdit("%")
         self.errorMapPlot = MplCanvasErrorMap("Error Map")
-
         progressLayout = QHBoxLayout()
         
         progressbar = QProgressBar()
@@ -218,7 +223,7 @@ class Window(QMainWindow):
         progressLayout.addWidget(progressbar,10)
         progressLayout.addWidget(ButtonProgressBar,2)
 
-
+        leftLayout.addWidget(ErrorPrecent)
         leftLayout.addWidget(self.errorMapPlot)
         leftLayout.addLayout(progressLayout)
         
