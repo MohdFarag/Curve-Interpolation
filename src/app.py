@@ -8,11 +8,6 @@ from Threads import *
 # import Classes
 from additionsQt import *
 
-import datetime
-# Sound package
-from scipy.io import wavfile
-from mutagen.wave import WAVE
-
 # Definition of Main Color Palette
 from Defs import COLOR1,COLOR2,COLOR3,COLOR4, COLOR5
 
@@ -55,7 +50,9 @@ class Window(QMainWindow):
         logging.debug("Application started")
 
         # Initialize Variable
-
+        self.mainDataPlot = np.array([])
+        self.timePlot = np.array([])
+        
         # setting Icon
         self.setWindowIcon(QIcon('images/icon.ico'))
 
@@ -101,6 +98,8 @@ class Window(QMainWindow):
         self.openFile = QAction("Open...",self)
         self.openFile.setShortcut("Ctrl+o")
         self.openFile.setStatusTip('Open a new signal')
+        self.openFile.triggered.connect(self.browseSignal)
+
 
         fileMenu.addAction(self.openFile)
 
@@ -239,6 +238,22 @@ class Window(QMainWindow):
     # Connect actions
     def connect(self):
         pass
+
+    def browseSignal(self):
+        # Open File
+        path, fileExtension = QFileDialog.getOpenFileName(None, "Load Signal File", os.getenv('HOME') ,"csv(*.csv)")
+        
+        if path == "":
+                return
+                
+        if fileExtension == "csv(*.csv)":
+            self.mainDataPlot = pd.read_csv(path).iloc[:,1].values.tolist()
+            self.timePlot = pd.read_csv(path).iloc[:,0].values.tolist()
+
+        self.mainPlot.clearSignal()
+        self.mainPlot.set_data(self.mainDataPlot, self.timePlot)
+        self.mainPlot.plotSignal()
+
 
     # Exit the application
     def exit(self):
