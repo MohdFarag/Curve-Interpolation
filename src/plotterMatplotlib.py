@@ -86,6 +86,10 @@ class MplCanvasPlotter(FigureCanvasQTAgg):
         self.axes.plot(self.x, self.y)
         self.draw()
 
+    def plotChunks(self,x, y):
+        self.axes.plot(x, y)
+        self.draw()
+
     def clearSignal(self):
         self.axes.clear()
         self.axes.set_xlim([min(self.x), max(self.x)])

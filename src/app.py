@@ -1,9 +1,7 @@
 # !/usr/bin/python
 
 # AdditionsQt
-from multiprocessing.sharedctypes import Value
-from click import progressbar
-from sympy import true
+from cProfile import label
 from additionsQt import *
 # Threads
 from Threads import *
@@ -20,6 +18,9 @@ from PyQt5.QtCore import *
 
 from errorMap import MplCanvasErrorMap
 from plotterMatplotlib import MplCanvasPlotter
+
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 # importing numpy and pandas
 import numpy as np
@@ -54,6 +55,12 @@ class Window(QMainWindow):
         # Initialize Variable
         self.mainDataPlot = np.array([])
         self.timePlot = np.array([])
+
+        self.overlap = 0
+        self.precentage = 100
+        self.noChunks = 0
+        self.efficiency = 0
+        self.degree = 0
         
         # setting Icon
         self.setWindowIcon(QIcon('images/icon.ico'))
@@ -210,12 +217,11 @@ class Window(QMainWindow):
         # Main Plot
         plotLayout = QVBoxLayout()
         
-        latex = QLineEdit()
-        latex.setStyleSheet("padding:3px; font-size:15px;")
-        latex.setDisabled(True)
+        self.latex = QLabel("")
+        self.latex.setStyleSheet("padding:5px; font-size:25px;")
 
         self.mainPlot = MplCanvasPlotter("Main Plot")
-        plotLayout.addWidget(latex,1)
+        plotLayout.addWidget(self.latex ,1)
         plotLayout.addWidget(self.mainPlot,10)
 
         mainLayout.addWidget(panelGroupBox,3)
@@ -239,16 +245,6 @@ class Window(QMainWindow):
         xAxisDegree.clicked.connect(lambda: self.xAxisChange(xAxisDegree.text()))
         xAxisChunks = QRadioButton("no. of Chunks")
         xAxisChunks.clicked.connect(lambda: self.xAxisChange(xAxisChunks.text()))
-
-        # X Axis Input range
-        self.xFrame = QFrame()
-        xAxisRange = QHBoxLayout()
-        self.xFrame.setLayout(xAxisRange)
-        self.xAxisLabel = QLabel("Overlap")
-        xAxisInput = QLineEdit()
-        xAxisRange.addWidget(self.xAxisLabel)
-        xAxisRange.addWidget(xAxisInput)
-        self.xFrame.hide()
         
         xAxisLayout.addWidget(xAxisOverLap)
         xAxisLayout.addWidget(xAxisDegree)
@@ -266,24 +262,13 @@ class Window(QMainWindow):
         yAxisChunks = QRadioButton("no. of Chunks")
         yAxisChunks.clicked.connect(lambda: self.yAxisChange(yAxisChunks.text()))
         
-        # Y Axis Input range
-        self.yFrame = QFrame()
-        yAxisRange = QHBoxLayout()
-        self.yFrame.setLayout(yAxisRange)
-        self.yAxisLabel = QLabel("Overlap")
-        yAxisInput = QLineEdit()
-        yAxisRange.addWidget(self.yAxisLabel)
-        yAxisRange.addWidget(yAxisInput)
-        self.yFrame.hide()
         
         yAxisLayout.addWidget(yAxisOverLap)
         yAxisLayout.addWidget(yAxisDegree)
         yAxisLayout.addWidget(yAxisChunks)
 
         mapPanelLayout.addWidget(xAxisGroupBox)
-        mapPanelLayout.addWidget(self.xFrame)
         mapPanelLayout.addWidget(yAxisGroupBox)
-        mapPanelLayout.addWidget(self.yFrame)
 
         # Error Map Plot
         leftLayout = QVBoxLayout()
@@ -322,21 +307,117 @@ class Window(QMainWindow):
 
     def changePrecentage(self,value):
         self.precentageCount.setText(str(value)+'%')
+        self.precentage = value
+        self.updateAfterEveryChange()
     
     def changeOverLap(self,value):
-        pass
+        self.overlap = value
+        self.updateAfterEveryChange()
     
     def changeDegree(self,value):
-        pass
+        self.degree = value
+        self.updateAfterEveryChange()
 
     def changeNoChunks(self,value):
-        pass
-
-    def changeNoChunks(self,value):
-        pass
+        self.noChunks = value
+        self.updateAfterEveryChange()
 
     def changeEfficiency(self,value):
-        pass
+        self.efficiency = value
+        self.updateAfterEveryChange()
+
+    def updateAfterEveryChange(self):
+        change = round(self.precentage / 100 * len(self.timePlot))
+
+        xTimePlot = self.timePlot[:change]
+        yMainDataPlot = self.mainDataPlot[:change]
+
+        period = int(len(xTimePlot) / self.noChunks)
+
+        i = 0
+        while i+period < len(xTimePlot):
+            chunkTime = xTimePlot[i:i+period]
+            chunkCoeff = np.polyfit(xTimePlot[i:i+period],yMainDataPlot[i:i+period], self.degree)
+            latexChunk = np.poly1d(chunkCoeff)
+            # Convert from poly to latex in string form
+            latexString = self.generateLatexString(latexChunk)
+            # Update label
+            try:
+                latexPixmap = self.latexToLabel(latexString,15)
+                # Update latex text
+                self.latex.setPixmap(latexPixmap)
+            except: 
+                pass
+
+            # Calc. the curve from equation of latex
+            chunkData = np.zeros(len(chunkTime)) # Initilize the chunkData
+            for j in range(len(chunkCoeff)):
+                chunkData += latexChunk(j) * np.array(np.power(chunkTime,j))
+            
+            self.mainPlot.plotChunks(chunkTime, chunkData)
+            i+= period
+
+    def generateLatexString(self, latexPoly):
+        coeff = latexPoly.c
+        latexString = "$Eq.= "
+        print(latexPoly.order)
+        i = 0
+        while i <= latexPoly.order :
+            coeff = latexPoly.c
+            if i == 0:
+                latexString += "{:.2f}".format(coeff[i])
+            elif i == 1:
+                latexString += "{:.2f}x".format(coeff[i])
+            else:
+                latexString += "{:.2f}x^{}".format(coeff[i],i)                
+            
+            if i == latexPoly.order-1 :
+                latexString += "+"
+        
+            i+=1
+        latexString += "$"
+
+        return latexString
+
+    def latexToLabel(self, mathTex, fs):
+        #---- set up a mpl figure instance ----
+
+        fig = Figure()
+        fig.patch.set_facecolor('none')
+        fig.set_canvas(FigureCanvasAgg(fig))
+        renderer = fig.canvas.get_renderer()
+
+        #---- plot the mathTex expression ----
+
+        ax = fig.add_axes([0, 0, 1, 1])
+        ax.axis('off')
+        ax.patch.set_facecolor('none')
+        t = ax.text(0, 0, mathTex, ha='left', va='bottom', fontsize=fs)
+
+        #---- fit figure size to text artist ----
+
+        fwidth, fheight = fig.get_size_inches()
+        fig_bbox = fig.get_window_extent(renderer)
+
+        text_bbox = t.get_window_extent(renderer)
+
+        tight_fwidth = text_bbox.width * fwidth / fig_bbox.width
+        tight_fheight = text_bbox.height * fheight / fig_bbox.height
+
+        fig.set_size_inches(tight_fwidth, tight_fheight)
+
+        #---- convert mpl figure to QPixmap ----
+
+        buf, size = fig.canvas.print_to_buffer()
+        qimage = QImage.rgbSwapped(QImage(buf, size[0], size[1],
+                                                    QImage.Format_ARGB32))
+        qpixmap = QPixmap(qimage)
+
+        # latexLabel = QLabel()
+        # latexLabel.setPixmap(qpixmap)
+
+        return qpixmap
+
 
     def browseSignal(self):
         # Open File
@@ -351,19 +432,19 @@ class Window(QMainWindow):
             if fileExtension == "csv(*.csv)":
                 self.mainDataPlot = pd.read_csv(path).iloc[:,1].values.tolist()
                 self.timePlot = pd.read_csv(path).iloc[:,0].values.tolist()
+            
+            self.mainPlot.clearSignal()
+            self.mainPlot.set_data(self.mainDataPlot, self.timePlot)
+            self.mainPlot.plotSignal()
+        
         except:
             logging.error("Can't open a csv file")
-        self.mainPlot.clearSignal()
-        self.mainPlot.set_data(self.mainDataPlot, self.timePlot)
-        self.mainPlot.plotSignal()
 
     # TODO: X AND Y in one function (self, "x or y", value)
     def yAxisChange(self, value):
-        self.yFrame.show()
         self.yAxisLabel.setText(value)
 
     def xAxisChange(self, value):
-        self.xFrame.show()
         self.xAxisLabel.setText(value)
 
     # Exit the application
