@@ -1,6 +1,7 @@
 # !/usr/bin/python
 
 # AdditionsQt
+from multiprocessing.sharedctypes import Value
 from click import progressbar
 from sympy import true
 from additionsQt import *
@@ -112,7 +113,7 @@ class Window(QMainWindow):
 
         # Add file tab to the menu
         menuBar.addMenu(fileMenu)
-        
+
     # GUI
     def initUI(self):
         centralMainWindow = QWidget(self)
@@ -138,6 +139,7 @@ class Window(QMainWindow):
                             padding: 5px 15px; 
                             background: {COLOR4};
                             color: {COLOR1};""")
+        self.efficiencyBox.valueChanged.connect(lambda: self.changeEfficiency(self.efficiencyBox.value()))
         efficiencyLayout.addWidget(efficiencyLabel,1)
         efficiencyLayout.addWidget(self.efficiencyBox,5)
 
@@ -149,6 +151,7 @@ class Window(QMainWindow):
                                 padding: 5px 15px; 
                                 background: {COLOR4};
                                 color: {COLOR1};""")
+        self.noChunksBox.valueChanged.connect(lambda: self.changeNoChunks(self.noChunksBox.value()))
         noChunksLayout.addWidget(noChunksLabel,1)
         noChunksLayout.addWidget(self.noChunksBox,5)
 
@@ -162,6 +165,7 @@ class Window(QMainWindow):
                             padding: 5px 15px; 
                             background: {COLOR4};
                             color: {COLOR1};""")
+        self.degreeBox.valueChanged.connect(lambda: self.changeDegree(self.degreeBox.value()))
         degreeLayout.addWidget(degreeLabel,1)
         degreeLayout.addWidget(self.degreeBox,5)
 
@@ -173,13 +177,35 @@ class Window(QMainWindow):
                             padding: 5px 15px; 
                             background: {COLOR4};
                             color: {COLOR1};""")
+        self.overlapBox.valueChanged.connect(lambda: self.changeOverLap(self.overlapBox.value()))
         overlapLayout.addWidget(overlapLabel,1)
         overlapLayout.addWidget(self.overlapBox,5)
+
+        # Overlap Text Box
+        precentageLayout = QVBoxLayout()
+        precentageLabel = QLabel("Data precentage %")
+        sliderLayout = QHBoxLayout()
+        self.precentageSlider = QSlider(Qt.Horizontal)
+        self.precentageSlider.setMinimum(0)
+        self.precentageSlider.setMaximum(100)
+        self.precentageSlider.setValue(100)
+        self.precentageSlider.valueChanged.connect(lambda: self.changePrecentage(self.precentageSlider.value()))
+        self.precentageCount = QLabel("100%")
+        # self.precentageSlider.setStyleSheet(f"""font-size:14px; 
+        #                     padding: 5px 15px; 
+        #                     background: {COLOR4};
+        #                     color: {COLOR1};""")
+        sliderLayout.addWidget(self.precentageSlider,10)
+        sliderLayout.addWidget(self.precentageCount,1)
+
+        overlapLayout.addWidget(precentageLabel,1)
+        overlapLayout.addLayout(sliderLayout,5)
 
         mainPanel.addLayout(efficiencyLayout)
         mainPanel.addLayout(noChunksLayout)
         mainPanel.addLayout(degreeLayout)
         mainPanel.addLayout(overlapLayout)
+        mainPanel.addLayout(precentageLayout)
 
         # Main Plot
         plotLayout = QVBoxLayout()
@@ -292,6 +318,24 @@ class Window(QMainWindow):
 
     # Connect actions
     def connect(self):
+        pass
+
+    def changePrecentage(self,value):
+        self.precentageCount.setText(str(value)+'%')
+    
+    def changeOverLap(self,value):
+        pass
+    
+    def changeDegree(self,value):
+        pass
+
+    def changeNoChunks(self,value):
+        pass
+
+    def changeNoChunks(self,value):
+        pass
+
+    def changeEfficiency(self,value):
         pass
 
     def browseSignal(self):
