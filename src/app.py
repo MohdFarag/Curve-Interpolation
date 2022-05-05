@@ -2,6 +2,7 @@
 
 # AdditionsQt
 from click import progressbar
+from sympy import true
 from additionsQt import *
 # Threads
 from Threads import *
@@ -81,7 +82,6 @@ class Window(QMainWindow):
         # Connect action
         self.connect()
     
-
     def setTheme(self, theme):
         self.mainPlot.setMode(theme)
         self.errorMapPlot.setMode(theme)
@@ -112,9 +112,7 @@ class Window(QMainWindow):
 
         # Add file tab to the menu
         menuBar.addMenu(fileMenu)
-
-        logging.info("Menubar has created.")
-
+        
     # GUI
     def initUI(self):
         centralMainWindow = QWidget(self)
@@ -131,42 +129,65 @@ class Window(QMainWindow):
         mainPanel = QVBoxLayout()
         panelGroupBox.setLayout(mainPanel)
         
+
         # Efficiency Text Box
+        efficiencyLayout = QVBoxLayout()
+        efficiencyLabel = QLabel("Efficiency")
         self.efficiencyBox = QSpinBox(self)
         self.efficiencyBox.setStyleSheet(f"""font-size:14px; 
                             padding: 5px 15px; 
                             background: {COLOR4};
                             color: {COLOR1};""")
+        efficiencyLayout.addWidget(efficiencyLabel,1)
+        efficiencyLayout.addWidget(self.efficiencyBox,5)
 
         # Num. of chunks Text Box
+        noChunksLayout = QVBoxLayout()
+        noChunksLabel = QLabel("Num. of chunks")
         self.noChunksBox = QSpinBox(self)
         self.noChunksBox.setStyleSheet(f"""font-size:14px; 
                                 padding: 5px 15px; 
                                 background: {COLOR4};
                                 color: {COLOR1};""")
+        noChunksLayout.addWidget(noChunksLabel,1)
+        noChunksLayout.addWidget(self.noChunksBox,5)
 
         # Polynomial Degree Text Box
+        degreeLayout = QVBoxLayout()
+        degreeLabel = QLabel("Polynomial Degree")
         self.degreeBox = QSpinBox(self)
+        self.degreeBox.setMinimum(1)
+        self.degreeBox.setMaximum(5)
         self.degreeBox.setStyleSheet(f"""font-size:14px; 
                             padding: 5px 15px; 
                             background: {COLOR4};
                             color: {COLOR1};""")
+        degreeLayout.addWidget(degreeLabel,1)
+        degreeLayout.addWidget(self.degreeBox,5)
 
-        # Overlap Degree Text Box
+        # Overlap Text Box
+        overlapLayout = QVBoxLayout()
+        overlapLabel = QLabel("Overlap")
         self.overlapBox = QSpinBox(self)
         self.overlapBox.setStyleSheet(f"""font-size:14px; 
                             padding: 5px 15px; 
                             background: {COLOR4};
                             color: {COLOR1};""")
+        overlapLayout.addWidget(overlapLabel,1)
+        overlapLayout.addWidget(self.overlapBox,5)
 
-        mainPanel.addWidget(self.efficiencyBox)
-        mainPanel.addWidget(self.noChunksBox)
-        mainPanel.addWidget(self.degreeBox)
-        mainPanel.addWidget(self.overlapBox)
+        mainPanel.addLayout(efficiencyLayout)
+        mainPanel.addLayout(noChunksLayout)
+        mainPanel.addLayout(degreeLayout)
+        mainPanel.addLayout(overlapLayout)
 
         # Main Plot
         plotLayout = QVBoxLayout()
+        
         latex = QLineEdit()
+        latex.setStyleSheet("padding:3px; font-size:15px;")
+        latex.setDisabled(True)
+
         self.mainPlot = MplCanvasPlotter("Main Plot")
         plotLayout.addWidget(latex,1)
         plotLayout.addWidget(self.mainPlot,10)
@@ -187,8 +208,21 @@ class Window(QMainWindow):
         xAxisGroupBox.setLayout(xAxisLayout)
 
         xAxisOverLap = QRadioButton("Overlap")
+        xAxisOverLap.clicked.connect(lambda: self.xAxisChange(xAxisOverLap.text()))
         xAxisDegree = QRadioButton("Degree")
-        xAxisChunks = QRadioButton("no. of Chunks") 
+        xAxisDegree.clicked.connect(lambda: self.xAxisChange(xAxisDegree.text()))
+        xAxisChunks = QRadioButton("no. of Chunks")
+        xAxisChunks.clicked.connect(lambda: self.xAxisChange(xAxisChunks.text()))
+
+        # X Axis Input range
+        self.xFrame = QFrame()
+        xAxisRange = QHBoxLayout()
+        self.xFrame.setLayout(xAxisRange)
+        self.xAxisLabel = QLabel("Overlap")
+        xAxisInput = QLineEdit()
+        xAxisRange.addWidget(self.xAxisLabel)
+        xAxisRange.addWidget(xAxisInput)
+        self.xFrame.hide()
         
         xAxisLayout.addWidget(xAxisOverLap)
         xAxisLayout.addWidget(xAxisDegree)
@@ -200,24 +234,45 @@ class Window(QMainWindow):
         yAxisGroupBox.setLayout(yAxisLayout)
 
         yAxisOverLap = QRadioButton("Overlap")
+        yAxisOverLap.clicked.connect(lambda: self.yAxisChange(yAxisOverLap.text()))
         yAxisDegree = QRadioButton("Degree")
-        yAxisChunks = QRadioButton("no. of Chunks") 
+        yAxisDegree.clicked.connect(lambda: self.yAxisChange(yAxisDegree.text()))
+        yAxisChunks = QRadioButton("no. of Chunks")
+        yAxisChunks.clicked.connect(lambda: self.yAxisChange(yAxisChunks.text()))
+        
+        # Y Axis Input range
+        self.yFrame = QFrame()
+        yAxisRange = QHBoxLayout()
+        self.yFrame.setLayout(yAxisRange)
+        self.yAxisLabel = QLabel("Overlap")
+        yAxisInput = QLineEdit()
+        yAxisRange.addWidget(self.yAxisLabel)
+        yAxisRange.addWidget(yAxisInput)
+        self.yFrame.hide()
         
         yAxisLayout.addWidget(yAxisOverLap)
         yAxisLayout.addWidget(yAxisDegree)
         yAxisLayout.addWidget(yAxisChunks)
 
         mapPanelLayout.addWidget(xAxisGroupBox)
+        mapPanelLayout.addWidget(self.xFrame)
         mapPanelLayout.addWidget(yAxisGroupBox)
+        mapPanelLayout.addWidget(self.yFrame)
 
         # Error Map Plot
         leftLayout = QVBoxLayout()
+        
         ErrorPrecent = QLineEdit("%")
-        self.errorMapPlot = MplCanvasErrorMap("Error Map")
+        ErrorPrecent.setStyleSheet("padding:3px; font-size:15px;")
+        ErrorPrecent.setDisabled(True)
+
+        self.errorMapPlot = MplCanvasErrorMap("Error Map",8,5)
         progressLayout = QHBoxLayout()
         
         progressbar = QProgressBar()
+        progressbar.setStyleSheet("padding:2px;")
         ButtonProgressBar = QPushButton("Start")
+        ButtonProgressBar.setStyleSheet("padding:2px; font-size:15px;")
 
         progressLayout.addWidget(progressbar,10)
         progressLayout.addWidget(ButtonProgressBar,2)
@@ -241,19 +296,31 @@ class Window(QMainWindow):
 
     def browseSignal(self):
         # Open File
-        path, fileExtension = QFileDialog.getOpenFileName(None, "Load Signal File", os.getenv('HOME') ,"csv(*.csv)")
-        
-        if path == "":
-                return
-                
-        if fileExtension == "csv(*.csv)":
-            self.mainDataPlot = pd.read_csv(path).iloc[:,1].values.tolist()
-            self.timePlot = pd.read_csv(path).iloc[:,0].values.tolist()
+        try:
+            path, fileExtension = QFileDialog.getOpenFileName(None, "Load Signal File", os.getenv('HOME') ,"csv(*.csv)")
 
+            if path == "":
+                self.timePlot = np.linspace(-10, 10, 1000)
+                self.mainDataPlot = np.sin(self.timePlot) + np.sin(2*self.timePlot) + 5*np.sin(3*self.timePlot) + 10*np.sin(6*self.timePlot)
+                # return
+                    
+            if fileExtension == "csv(*.csv)":
+                self.mainDataPlot = pd.read_csv(path).iloc[:,1].values.tolist()
+                self.timePlot = pd.read_csv(path).iloc[:,0].values.tolist()
+        except:
+            logging.error("Can't open a csv file")
         self.mainPlot.clearSignal()
         self.mainPlot.set_data(self.mainDataPlot, self.timePlot)
         self.mainPlot.plotSignal()
 
+    # TODO: X AND Y in one function (self, "x or y", value)
+    def yAxisChange(self, value):
+        self.yFrame.show()
+        self.yAxisLabel.setText(value)
+
+    def xAxisChange(self, value):
+        self.xFrame.show()
+        self.xAxisLabel.setText(value)
 
     # Exit the application
     def exit(self):

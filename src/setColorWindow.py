@@ -38,8 +38,8 @@ class popWindow(QMainWindow):
         startimg = QLabel("Curve interpolation")
         startimg.setStyleSheet("""
                             margin-bottom: 35px; 
-                            padding:20px;
-                            font-size:20px;""")
+                            padding:30px;
+                            font-size:25px;""")
         # img = QPixmap('images/start.png').scaled(950,400)
         # startimg.setPixmap(img)
 

@@ -40,7 +40,8 @@ if __name__ == "__main__":
     app.setStyle('Fusion')
     app.setStyleSheet(StyleSheet)
 
-    popWin = popWindow("Dark or Light or Orange ?", ["Light", "Orange", "Dark"])
+    # popWin = popWindow("Dark or Light or Orange ?", ["Light", "Orange", "Dark"])
+    popWin = Window()
     popWin.show()
 
     # Run the application
