@@ -2,6 +2,7 @@
 
 # AdditionsQt
 from cProfile import label
+import string
 from additionsQt import *
 # Threads
 from Threads import *
@@ -52,35 +53,38 @@ class Window(QMainWindow):
         super().__init__()
         logging.debug("Application started")
 
-        # Initialize Variable
+        ### Initialize Variable
         self.mainDataPlot = np.array([])
         self.timePlot = np.array([])
-
+        
+        # interpolation variables
         self.overlap = 0
         self.precentage = 100
         self.noChunks = 0
-        self.efficiency = 0
         self.degree = 1
-
         self.latexList = list()
         
-        # setting Icon
+        # Error map variables
+        self.yErrorMap = ""
+        self.xErrorMap = ""
+
+        ### Setting Icon
         self.setWindowIcon(QIcon('images/icon.ico'))
 
-        # setting  the fixed width of window
+        # Setting  the fixed width of window
         # width = 1400
         # height = 800
         # self.setMinimumSize(width,height)
 
-        # setting title
+        ### Setting title
         self.setWindowTitle("Musical Instruments Equalizer")
 
-        # UI contents
+        ### UI contents
         self.createMenuBar()
 
         self.initUI()
 
-        # Status Bar
+        ### Status Bar
         self.statusBar = QStatusBar()
         self.statusBar.setStyleSheet(f"""font-size:13px;
                                  padding: 3px;
@@ -89,9 +93,10 @@ class Window(QMainWindow):
         self.statusBar.showMessage("Welcome to our application...")
         self.setStatusBar(self.statusBar)
 
-        # Connect action
+        ### Connect action
         self.connect()
     
+    # Set theme
     def setTheme(self, theme):
         self.mainPlot.setMode(theme)
         self.errorMapPlot.setMode(theme)
@@ -137,18 +142,6 @@ class Window(QMainWindow):
         panelGroupBox = QGroupBox("Main Panel")
         mainPanel = QVBoxLayout()
         panelGroupBox.setLayout(mainPanel)
-        
-
-        # Efficiency Text Box
-        efficiencyLayout = QVBoxLayout()
-        efficiencyLabel = QLabel("Efficiency")
-        self.efficiencyBox = QSpinBox(self)
-        self.efficiencyBox.setStyleSheet(f"""font-size:14px; 
-                            padding: 5px 15px; 
-                            background: {COLOR4};
-                            color: {COLOR1};""")
-        efficiencyLayout.addWidget(efficiencyLabel,1)
-        efficiencyLayout.addWidget(self.efficiencyBox,5)
 
         # Num. of chunks Text Box
         noChunksLayout = QVBoxLayout()
@@ -194,7 +187,7 @@ class Window(QMainWindow):
 
         # Overlap Text Box
         precentageLayout = QVBoxLayout()
-        precentageLabel = QLabel("Data precentage %")
+        precentageLabel = QLabel("Efficiency %")
         
         sliderLayout = QHBoxLayout()
         self.precentageSlider = QSlider(Qt.Horizontal)
@@ -209,7 +202,6 @@ class Window(QMainWindow):
         precentageLayout.addWidget(precentageLabel,1)
         precentageLayout.addLayout(sliderLayout,5)
 
-        mainPanel.addLayout(efficiencyLayout)
         mainPanel.addLayout(noChunksLayout)
         mainPanel.addLayout(degreeLayout)
         mainPanel.addLayout(overlapLayout)
@@ -273,9 +265,9 @@ class Window(QMainWindow):
         # Error Map Plot
         leftLayout = QVBoxLayout()
         
-        ErrorPrecent = QLineEdit("%")
-        ErrorPrecent.setStyleSheet("padding:3px; font-size:15px;")
-        ErrorPrecent.setDisabled(True)
+        self.ErrorPrecent = QLineEdit("%")
+        self.ErrorPrecent.setStyleSheet("padding:3px; font-size:15px;")
+        self.ErrorPrecent.setDisabled(True)
 
         self.errorMapPlot = MplCanvasErrorMap("Error Map",8,5)
         progressLayout = QHBoxLayout()
@@ -288,7 +280,7 @@ class Window(QMainWindow):
         progressLayout.addWidget(progressbar,10)
         progressLayout.addWidget(ButtonProgressBar,2)
 
-        leftLayout.addWidget(ErrorPrecent)
+        leftLayout.addWidget(self.ErrorPrecent)
         leftLayout.addWidget(self.errorMapPlot)
         leftLayout.addLayout(progressLayout)
         
@@ -305,7 +297,6 @@ class Window(QMainWindow):
     def connect(self):
         self.chunksList.currentTextChanged.connect(lambda: self.chunkLatexChange(self.chunksList.currentText()))
 
-        self.efficiencyBox.valueChanged.connect(lambda: self.changeEfficiency(self.efficiencyBox.value()))
         self.noChunksBox.valueChanged.connect(lambda: self.changeNoChunks(self.noChunksBox.value()))
         self.overlapBox.valueChanged.connect(lambda: self.changeOverLap(self.overlapBox.value()))
         self.precentageSlider.valueChanged.connect(lambda: self.changePrecentage(self.precentageSlider.value()))
@@ -346,24 +337,21 @@ class Window(QMainWindow):
         self.noChunks = value
         self.updateAfterEveryChange()
 
-    def changeEfficiency(self,value):
-        self.efficiency = value
-        self.updateAfterEveryChange()
-
     def updateAfterEveryChange(self):
-
-        # Clear Chunks
-        self.mainPlot.clearChunks()
-        self.chunksList.clear()
-        self.chunksList.addItem("no.")
-        self.latex.clear()
-
+        
         # Calc. precentage of data
         change = round(self.precentage / 100 * len(self.timePlot))
 
         # Select the precentage of the data
         xTimePlot = self.timePlot[:change]
         yMainDataPlot = self.mainDataPlot[:change]
+
+        # Clear Chunks
+        # self.mainPlot.set_data(yMainDataPlot, xTimePlot)
+        self.mainPlot.clearChunks()
+        self.chunksList.clear()
+        self.chunksList.addItem("no.")
+        self.latex.clear()
         
         # Calc. the period of each chunk
         period = len(xTimePlot) / self.noChunks
@@ -371,11 +359,11 @@ class Window(QMainWindow):
         overlapPeriod = self.overlap/100 * period
 
         self.latexList = list()
+        precentageError = list()
         start, end = 0, 0
         i = 0 # iteration
         n = 1
         while i+period-overlapPeriod <= len(xTimePlot):
-            
             # Calculate the start and end of each chunk
             if i != 0:
                 start = int(i-overlapPeriod)
@@ -385,6 +373,7 @@ class Window(QMainWindow):
                 start = int(i)
                 end = int(i+period)
                 i+=period
+
 
             if i+period-overlapPeriod > len(xTimePlot):
                 end = len(xTimePlot)
@@ -399,6 +388,7 @@ class Window(QMainWindow):
             latexString = self.generateLatexString(latexChunk)
             self.latexList.append(latexString)
             self.chunksList.addItem(str(n))
+            
             n+=1
 
             # Calc. the curve from equation of latex
@@ -406,21 +396,81 @@ class Window(QMainWindow):
             for j in range(int(end-start)):
                 chunkData[j] = latexChunk(chunkTime[j])
             
+            chunkError = self.MeanAbsoluteError(yMainDataPlot[start:end],chunkData)
+            precentageError.append(chunkError)
             self.mainPlot.plotChunks(chunkTime, chunkData)
+
+        # Calculate the precentage error
+        self.ErrorPrecent.setText("{:.3f}%".format())
+
+    def calcChunks(self, noChunks, degree, overlap, Efficiency):
+        
+        # Calc. precentage of data
+        change = round(Efficiency / 100 * len(self.timePlot))
+
+        # Select the precentage of the data
+        xTimePlot = self.timePlot[:change]
+        yMainDataPlot = self.mainDataPlot[:change]
+
+        # Calc. the period of each chunk
+        period = len(xTimePlot) / noChunks
+        # Calc. the overlap period
+        overlapPeriod = overlap/100 * period
+        
+        precentageError = list()
+        start, end = 0, 0
+        i = 0 # iteration
+
+        while i+period-overlapPeriod <= len(xTimePlot):
+            # Calculate the start and end of each chunk
+            if i != 0:
+                start = int(i-overlapPeriod)
+                end = int(i-overlapPeriod+period)
+                i += period-overlapPeriod
+            else:
+                start = int(i)
+                end = int(i+period)
+                i+=period
+            
+            if i+period-overlapPeriod > len(xTimePlot):
+                end = len(xTimePlot)
+
+            # Chunk Time
+            chunkTime = xTimePlot[start:end]
+            # Poly fit
+            chunkCoeff = np.polyfit(xTimePlot[start:end], yMainDataPlot[start:end], degree)
+            latexChunk = np.poly1d(chunkCoeff)
+
+            # Calc. the curve from equation of latex
+            chunkData = np.zeros(int(end-start)) # Initilize the chunkData
+            for j in range(int(end-start)):
+                chunkData[j] = latexChunk(chunkTime[j])
+            
+            chunkError = self.MeanAbsoluteError(yMainDataPlot[start:end],chunkData)
+            precentageError.append(chunkError)
+
+        # Calculate the precentage error
+        precentageErrorFinal = np.mean(precentageError)
+
+        return precentageErrorFinal, latexChunk, chunkTime, chunkData
+
+    def MeanAbsoluteError(self,y_true, y_chunk):
+            y_true, y_chunk = np.array(y_true), np.array(y_chunk)
+            return ((np.mean(np.abs(y_true - y_chunk))/(np.abs(np.mean(y_true))))*100)
 
     def generateLatexString(self, latexPoly):
         coeff = latexPoly.c
         latexString = "$"
-        for i in range(latexPoly.order+1) :
+        for i in range(latexPoly.order,-1,-1) :
             coeff = latexPoly.c
             if i == 0:
                 latexString += "{:.3f}".format(coeff[0])
             elif i == 1:
-                latexString += "{:.2f}x".format(coeff[1])
+                latexString += "{:.2f}X".format(coeff[1])
             else:
-                latexString += "{:.2f}x^{}".format(coeff[i],i)                
+                latexString += "{:.2f}X^{}".format(coeff[i],i)                
             
-            if i != latexPoly.order :
+            if i != 0 :
                 latexString += "+"
         
             i+=1
@@ -467,7 +517,6 @@ class Window(QMainWindow):
 
         return qpixmap
 
-
     def browseSignal(self):
         # Open File
         try:
@@ -491,10 +540,10 @@ class Window(QMainWindow):
 
     # TODO: X AND Y in one function (self, "x or y", value)
     def yAxisChange(self, value):
-        pass
+        self.yErrorMap = value  
 
     def xAxisChange(self, value):
-        pass
+        self.xErrorMap = value
 
     # Exit the application
     def exit(self):
