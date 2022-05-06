@@ -60,7 +60,9 @@ class Window(QMainWindow):
         self.precentage = 100
         self.noChunks = 0
         self.efficiency = 0
-        self.degree = 0
+        self.degree = 1
+
+        self.latexList = list()
         
         # setting Icon
         self.setWindowIcon(QIcon('images/icon.ico'))
@@ -108,7 +110,6 @@ class Window(QMainWindow):
         self.openFile.setStatusTip('Open a new signal')
         self.openFile.triggered.connect(self.browseSignal)
 
-
         fileMenu.addAction(self.openFile)
 
         # Exit file in menu
@@ -146,7 +147,6 @@ class Window(QMainWindow):
                             padding: 5px 15px; 
                             background: {COLOR4};
                             color: {COLOR1};""")
-        self.efficiencyBox.valueChanged.connect(lambda: self.changeEfficiency(self.efficiencyBox.value()))
         efficiencyLayout.addWidget(efficiencyLabel,1)
         efficiencyLayout.addWidget(self.efficiencyBox,5)
 
@@ -158,7 +158,6 @@ class Window(QMainWindow):
                                 padding: 5px 15px; 
                                 background: {COLOR4};
                                 color: {COLOR1};""")
-        self.noChunksBox.valueChanged.connect(lambda: self.changeNoChunks(self.noChunksBox.value()))
         noChunksLayout.addWidget(noChunksLabel,1)
         noChunksLayout.addWidget(self.noChunksBox,5)
 
@@ -172,41 +171,43 @@ class Window(QMainWindow):
                             padding: 5px 15px; 
                             background: {COLOR4};
                             color: {COLOR1};""")
-        self.degreeBox.valueChanged.connect(lambda: self.changeDegree(self.degreeBox.value()))
         degreeLayout.addWidget(degreeLabel,1)
         degreeLayout.addWidget(self.degreeBox,5)
 
         # Overlap Text Box
         overlapLayout = QVBoxLayout()
-        overlapLabel = QLabel("Overlap")
+        overlapLabel = QLabel("Overlap %")
+        
+        overlapBoxLayout = QHBoxLayout()
         self.overlapBox = QSpinBox(self)
+        self.overlapBox.setMinimum(0)
+        self.overlapBox.setMaximum(25)
         self.overlapBox.setStyleSheet(f"""font-size:14px; 
                             padding: 5px 15px; 
                             background: {COLOR4};
                             color: {COLOR1};""")
-        self.overlapBox.valueChanged.connect(lambda: self.changeOverLap(self.overlapBox.value()))
+        overlapBoxLayout.addWidget(self.overlapBox, 20)
+        overlapBoxLayout.addWidget(QLabel("%"), 1)
+        
         overlapLayout.addWidget(overlapLabel,1)
-        overlapLayout.addWidget(self.overlapBox,5)
+        overlapLayout.addLayout(overlapBoxLayout,5)
 
         # Overlap Text Box
         precentageLayout = QVBoxLayout()
         precentageLabel = QLabel("Data precentage %")
+        
         sliderLayout = QHBoxLayout()
         self.precentageSlider = QSlider(Qt.Horizontal)
         self.precentageSlider.setMinimum(0)
         self.precentageSlider.setMaximum(100)
         self.precentageSlider.setValue(100)
-        self.precentageSlider.valueChanged.connect(lambda: self.changePrecentage(self.precentageSlider.value()))
+        
         self.precentageCount = QLabel("100%")
-        # self.precentageSlider.setStyleSheet(f"""font-size:14px; 
-        #                     padding: 5px 15px; 
-        #                     background: {COLOR4};
-        #                     color: {COLOR1};""")
         sliderLayout.addWidget(self.precentageSlider,10)
         sliderLayout.addWidget(self.precentageCount,1)
 
-        overlapLayout.addWidget(precentageLabel,1)
-        overlapLayout.addLayout(sliderLayout,5)
+        precentageLayout.addWidget(precentageLabel,1)
+        precentageLayout.addLayout(sliderLayout,5)
 
         mainPanel.addLayout(efficiencyLayout)
         mainPanel.addLayout(noChunksLayout)
@@ -217,11 +218,17 @@ class Window(QMainWindow):
         # Main Plot
         plotLayout = QVBoxLayout()
         
+        latexLayout = QHBoxLayout()
+        self.chunksList = QComboBox()
+        self.chunksList.setStyleSheet("padding:2px; font-size:15px;")
+        self.chunksList.addItem("no.")
         self.latex = QLabel("")
-        self.latex.setStyleSheet("padding:5px; font-size:25px;")
+        self.latex.setStyleSheet("padding:5px")
+        latexLayout.addWidget(self.latex,20)
+        latexLayout.addWidget(self.chunksList,2)
 
         self.mainPlot = MplCanvasPlotter("Main Plot")
-        plotLayout.addWidget(self.latex ,1)
+        plotLayout.addLayout(latexLayout ,1)
         plotLayout.addWidget(self.mainPlot,10)
 
         mainLayout.addWidget(panelGroupBox,3)
@@ -239,33 +246,26 @@ class Window(QMainWindow):
         xAxisLayout = QHBoxLayout()
         xAxisGroupBox.setLayout(xAxisLayout)
 
-        xAxisOverLap = QRadioButton("Overlap")
-        xAxisOverLap.clicked.connect(lambda: self.xAxisChange(xAxisOverLap.text()))
-        xAxisDegree = QRadioButton("Degree")
-        xAxisDegree.clicked.connect(lambda: self.xAxisChange(xAxisDegree.text()))
-        xAxisChunks = QRadioButton("no. of Chunks")
-        xAxisChunks.clicked.connect(lambda: self.xAxisChange(xAxisChunks.text()))
+        self.xAxisOverLap = QRadioButton("Overlap")
+        self.xAxisDegree = QRadioButton("Degree")
+        self.xAxisChunks = QRadioButton("no. of Chunks")
         
-        xAxisLayout.addWidget(xAxisOverLap)
-        xAxisLayout.addWidget(xAxisDegree)
-        xAxisLayout.addWidget(xAxisChunks)
+        xAxisLayout.addWidget(self.xAxisOverLap)
+        xAxisLayout.addWidget(self.xAxisDegree)
+        xAxisLayout.addWidget(self.xAxisChunks)
 
         # Y-axis
         yAxisGroupBox = QGroupBox("Y-axis")
         yAxisLayout = QHBoxLayout()
         yAxisGroupBox.setLayout(yAxisLayout)
 
-        yAxisOverLap = QRadioButton("Overlap")
-        yAxisOverLap.clicked.connect(lambda: self.yAxisChange(yAxisOverLap.text()))
-        yAxisDegree = QRadioButton("Degree")
-        yAxisDegree.clicked.connect(lambda: self.yAxisChange(yAxisDegree.text()))
-        yAxisChunks = QRadioButton("no. of Chunks")
-        yAxisChunks.clicked.connect(lambda: self.yAxisChange(yAxisChunks.text()))
+        self.yAxisOverLap = QRadioButton("Overlap")
+        self.yAxisDegree = QRadioButton("Degree")
+        self.yAxisChunks = QRadioButton("no. of Chunks")        
         
-        
-        yAxisLayout.addWidget(yAxisOverLap)
-        yAxisLayout.addWidget(yAxisDegree)
-        yAxisLayout.addWidget(yAxisChunks)
+        yAxisLayout.addWidget(self.yAxisOverLap)
+        yAxisLayout.addWidget(self.yAxisDegree)
+        yAxisLayout.addWidget(self.yAxisChunks)
 
         mapPanelLayout.addWidget(xAxisGroupBox)
         mapPanelLayout.addWidget(yAxisGroupBox)
@@ -303,8 +303,32 @@ class Window(QMainWindow):
 
     # Connect actions
     def connect(self):
-        pass
+        self.chunksList.currentTextChanged.connect(lambda: self.chunkLatexChange(self.chunksList.currentText()))
 
+        self.efficiencyBox.valueChanged.connect(lambda: self.changeEfficiency(self.efficiencyBox.value()))
+        self.noChunksBox.valueChanged.connect(lambda: self.changeNoChunks(self.noChunksBox.value()))
+        self.overlapBox.valueChanged.connect(lambda: self.changeOverLap(self.overlapBox.value()))
+        self.precentageSlider.valueChanged.connect(lambda: self.changePrecentage(self.precentageSlider.value()))
+        self.degreeBox.valueChanged.connect(lambda: self.changeDegree(self.degreeBox.value()))
+
+        # Error map
+        self.xAxisOverLap.clicked.connect(lambda: self.xAxisChange(self.xAxisOverLap.text()))
+        self.xAxisDegree.clicked.connect(lambda: self.xAxisChange(self.xAxisDegree.text()))
+        self.xAxisChunks.clicked.connect(lambda: self.xAxisChange(self.xAxisChunks.text()))
+
+        self.yAxisOverLap.clicked.connect(lambda: self.yAxisChange(self.yAxisOverLap.text()))
+        self.yAxisDegree.clicked.connect(lambda: self.yAxisChange(self.yAxisDegree.text()))
+        self.yAxisChunks.clicked.connect(lambda: self.yAxisChange(self.yAxisChunks.text()))
+
+    def chunkLatexChange(self, i):
+        # Update label
+        try:
+            latexPixmap = self.latexToLabel(self.latexList[int(i)-1],15)
+            # Update latex text
+            self.latex.setPixmap(latexPixmap)
+        except: 
+            pass
+    
     def changePrecentage(self,value):
         self.precentageCount.setText(str(value)+'%')
         self.precentage = value
@@ -327,51 +351,76 @@ class Window(QMainWindow):
         self.updateAfterEveryChange()
 
     def updateAfterEveryChange(self):
+
+        # Clear Chunks
+        self.mainPlot.clearChunks()
+        self.chunksList.clear()
+        self.chunksList.addItem("no.")
+        self.latex.clear()
+
+        # Calc. precentage of data
         change = round(self.precentage / 100 * len(self.timePlot))
 
+        # Select the precentage of the data
         xTimePlot = self.timePlot[:change]
         yMainDataPlot = self.mainDataPlot[:change]
+        
+        # Calc. the period of each chunk
+        period = len(xTimePlot) / self.noChunks
+        # Calc. the overlap period
+        overlapPeriod = self.overlap/100 * period
 
-        period = int(len(xTimePlot) / self.noChunks)
+        self.latexList = list()
+        start, end = 0, 0
+        i = 0 # iteration
+        n = 1
+        while i+period-overlapPeriod <= len(xTimePlot):
+            
+            # Calculate the start and end of each chunk
+            if i != 0:
+                start = int(i-overlapPeriod)
+                end = int(i-overlapPeriod+period)
+                i += period-overlapPeriod
+            else:
+                start = int(i)
+                end = int(i+period)
+                i+=period
 
-        i = 0
-        while i+period < len(xTimePlot):
-            chunkTime = xTimePlot[i:i+period]
-            chunkCoeff = np.polyfit(xTimePlot[i:i+period],yMainDataPlot[i:i+period], self.degree)
+            if i+period-overlapPeriod > len(xTimePlot):
+                end = len(xTimePlot)
+            
+            # Chunk Time
+            chunkTime = xTimePlot[start:end]
+            # Poly fit
+            chunkCoeff = np.polyfit(xTimePlot[start:end], yMainDataPlot[start:end], self.degree)
             latexChunk = np.poly1d(chunkCoeff)
+
             # Convert from poly to latex in string form
             latexString = self.generateLatexString(latexChunk)
-            # Update label
-            try:
-                latexPixmap = self.latexToLabel(latexString,15)
-                # Update latex text
-                self.latex.setPixmap(latexPixmap)
-            except: 
-                pass
+            self.latexList.append(latexString)
+            self.chunksList.addItem(str(n))
+            n+=1
 
             # Calc. the curve from equation of latex
-            chunkData = np.zeros(len(chunkTime)) # Initilize the chunkData
-            for j in range(len(chunkCoeff)):
-                chunkData += latexChunk(j) * np.array(np.power(chunkTime,j))
+            chunkData = np.zeros(int(end-start)) # Initilize the chunkData
+            for j in range(int(end-start)):
+                chunkData[j] = latexChunk(chunkTime[j])
             
             self.mainPlot.plotChunks(chunkTime, chunkData)
-            i+= period
 
     def generateLatexString(self, latexPoly):
         coeff = latexPoly.c
-        latexString = "$Eq.= "
-        print(latexPoly.order)
-        i = 0
-        while i <= latexPoly.order :
+        latexString = "$"
+        for i in range(latexPoly.order+1) :
             coeff = latexPoly.c
             if i == 0:
-                latexString += "{:.2f}".format(coeff[i])
+                latexString += "{:.3f}".format(coeff[0])
             elif i == 1:
-                latexString += "{:.2f}x".format(coeff[i])
+                latexString += "{:.2f}x".format(coeff[1])
             else:
                 latexString += "{:.2f}x^{}".format(coeff[i],i)                
             
-            if i == latexPoly.order-1 :
+            if i != latexPoly.order :
                 latexString += "+"
         
             i+=1
@@ -442,10 +491,10 @@ class Window(QMainWindow):
 
     # TODO: X AND Y in one function (self, "x or y", value)
     def yAxisChange(self, value):
-        self.yAxisLabel.setText(value)
+        pass
 
     def xAxisChange(self, value):
-        self.xAxisLabel.setText(value)
+        pass
 
     # Exit the application
     def exit(self):
