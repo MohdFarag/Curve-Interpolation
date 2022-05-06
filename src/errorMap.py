@@ -20,7 +20,7 @@ logging.basicConfig(filename="errlog.log",
 
 class MplCanvasErrorMap(FigureCanvasQTAgg):
     
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
+    def __init__(self, parent=None, width=8, height=5, dpi=100):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         self.fig.set_edgecolor("white")
             
@@ -31,6 +31,7 @@ class MplCanvasErrorMap(FigureCanvasQTAgg):
         colormap = plt.cm.get_cmap("rainbow")
         sm = plt.cm.ScalarMappable(cmap=colormap)
         self.colorBarSpectrogram = self.fig.colorbar(sm)
+
         super(MplCanvasErrorMap, self).__init__(self.fig)
 
     data_channel = [np.random.randint(-10,10) for i in range(500)]
@@ -95,14 +96,16 @@ class MplCanvasErrorMap(FigureCanvasQTAgg):
         else:
             return False
 
-    def plotSignal(self, fs):
-        # try:
-            self.data_channel = np.array(self.data_channel)
-            pxx,  freq, t, self.cax = self.axes.specgram(self.data_channel, Fs=fs, cmap=self.colorPalette, mode="psd")
-            self.draw()
-        # except:
-        #     logging.error("Failed to plot Spectrogram.")  
-        #     print("Error:  failed to plot spectrogram")         
+    def plotErrorMap(self):
+        self.data_channel = np.array(self.data_channel)
+
+        if self.data_channel.ndim > 1 :
+            self.axes.imshow(self.data_channel)
+            self.draw()  
+        else :
+            logging.error("Can't generate image plot because array is 2D.") 
+
+        self.fig.set_size(18, 10, forward=True)  
         
     def clearSignal(self):
         self.axes.clear()

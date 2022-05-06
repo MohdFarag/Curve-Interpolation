@@ -2,7 +2,10 @@
 
 # AdditionsQt
 from cProfile import label
+import chunk
 import string
+
+from sympy import degree, true
 from additionsQt import *
 # Threads
 from Threads import *
@@ -60,7 +63,7 @@ class Window(QMainWindow):
         # interpolation variables
         self.overlap = 0
         self.precentage = 100
-        self.noChunks = 0
+        self.noChunks = 1
         self.degree = 1
         self.latexList = list()
         
@@ -147,6 +150,7 @@ class Window(QMainWindow):
         noChunksLayout = QVBoxLayout()
         noChunksLabel = QLabel("Num. of chunks")
         self.noChunksBox = QSpinBox(self)
+        self.noChunksBox.setMinimum(1)
         self.noChunksBox.setStyleSheet(f"""font-size:14px; 
                                 padding: 5px 15px; 
                                 background: {COLOR4};
@@ -159,7 +163,7 @@ class Window(QMainWindow):
         degreeLabel = QLabel("Polynomial Degree")
         self.degreeBox = QSpinBox(self)
         self.degreeBox.setMinimum(1)
-        self.degreeBox.setMaximum(5)
+        self.degreeBox.setMaximum(8)
         self.degreeBox.setStyleSheet(f"""font-size:14px; 
                             padding: 5px 15px; 
                             background: {COLOR4};
@@ -240,7 +244,7 @@ class Window(QMainWindow):
 
         self.xAxisOverLap = QRadioButton("Overlap")
         self.xAxisDegree = QRadioButton("Degree")
-        self.xAxisChunks = QRadioButton("no. of Chunks")
+        self.xAxisChunks = QRadioButton("No. of Chunks")
         
         xAxisLayout.addWidget(self.xAxisOverLap)
         xAxisLayout.addWidget(self.xAxisDegree)
@@ -253,7 +257,7 @@ class Window(QMainWindow):
 
         self.yAxisOverLap = QRadioButton("Overlap")
         self.yAxisDegree = QRadioButton("Degree")
-        self.yAxisChunks = QRadioButton("no. of Chunks")        
+        self.yAxisChunks = QRadioButton("No. of Chunks")        
         
         yAxisLayout.addWidget(self.yAxisOverLap)
         yAxisLayout.addWidget(self.yAxisDegree)
@@ -274,11 +278,11 @@ class Window(QMainWindow):
         
         progressbar = QProgressBar()
         progressbar.setStyleSheet("padding:2px;")
-        ButtonProgressBar = QPushButton("Start")
-        ButtonProgressBar.setStyleSheet("padding:2px; font-size:15px;")
+        self.ButtonProgressBar = QPushButton("Start")
+        self.ButtonProgressBar.setStyleSheet("padding:2px; font-size:15px;")
 
         progressLayout.addWidget(progressbar,10)
-        progressLayout.addWidget(ButtonProgressBar,2)
+        progressLayout.addWidget(self.ButtonProgressBar,2)
 
         leftLayout.addWidget(self.ErrorPrecent)
         leftLayout.addWidget(self.errorMapPlot)
@@ -303,6 +307,8 @@ class Window(QMainWindow):
         self.degreeBox.valueChanged.connect(lambda: self.changeDegree(self.degreeBox.value()))
 
         # Error map
+        self.ButtonProgressBar.clicked.connect(lambda: self.generateErrorMap())
+
         self.xAxisOverLap.clicked.connect(lambda: self.xAxisChange(self.xAxisOverLap.text()))
         self.xAxisDegree.clicked.connect(lambda: self.xAxisChange(self.xAxisDegree.text()))
         self.xAxisChunks.clicked.connect(lambda: self.xAxisChange(self.xAxisChunks.text()))
@@ -352,75 +358,22 @@ class Window(QMainWindow):
         self.chunksList.clear()
         self.chunksList.addItem("no.")
         self.latex.clear()
-        
-        # Calc. the period of each chunk
-        period = len(xTimePlot) / self.noChunks
-        # Calc. the overlap period
-        overlapPeriod = self.overlap/100 * period
 
-        self.latexList = list()
-        precentageError = list()
-        start, end = 0, 0
-        i = 0 # iteration
-        n = 1
-        while i+period-overlapPeriod <= len(xTimePlot):
-            # Calculate the start and end of each chunk
-            if i != 0:
-                start = int(i-overlapPeriod)
-                end = int(i-overlapPeriod+period)
-                i += period-overlapPeriod
-            else:
-                start = int(i)
-                end = int(i+period)
-                i+=period
-
-
-            if i+period-overlapPeriod > len(xTimePlot):
-                end = len(xTimePlot)
-            
-            # Chunk Time
-            chunkTime = xTimePlot[start:end]
-            # Poly fit
-            chunkCoeff = np.polyfit(xTimePlot[start:end], yMainDataPlot[start:end], self.degree)
-            latexChunk = np.poly1d(chunkCoeff)
-
-            # Convert from poly to latex in string form
-            latexString = self.generateLatexString(latexChunk)
-            self.latexList.append(latexString)
-            self.chunksList.addItem(str(n))
-            
-            n+=1
-
-            # Calc. the curve from equation of latex
-            chunkData = np.zeros(int(end-start)) # Initilize the chunkData
-            for j in range(int(end-start)):
-                chunkData[j] = latexChunk(chunkTime[j])
-            
-            chunkError = self.MeanAbsoluteError(yMainDataPlot[start:end],chunkData)
-            precentageError.append(chunkError)
-            self.mainPlot.plotChunks(chunkTime, chunkData)
-
+        precentageErrorFinal = self.calcChunks(xTimePlot,yMainDataPlot,self.noChunks,self.degree,self.overlap,true)
         # Calculate the precentage error
-        self.ErrorPrecent.setText("{:.3f}%".format())
+        self.ErrorPrecent.setText("{:.3f}%".format(precentageErrorFinal))
 
-    def calcChunks(self, noChunks, degree, overlap, Efficiency):
-        
-        # Calc. precentage of data
-        change = round(Efficiency / 100 * len(self.timePlot))
-
-        # Select the precentage of the data
-        xTimePlot = self.timePlot[:change]
-        yMainDataPlot = self.mainDataPlot[:change]
-
+    def calcChunks(self, xTimePlot, yMainDataPlot, noChunks, degree, overlap, status):
         # Calc. the period of each chunk
         period = len(xTimePlot) / noChunks
         # Calc. the overlap period
         overlapPeriod = overlap/100 * period
         
+        self.latexList = list()
         precentageError = list()
         start, end = 0, 0
         i = 0 # iteration
-
+        n = 1
         while i+period-overlapPeriod <= len(xTimePlot):
             # Calculate the start and end of each chunk
             if i != 0:
@@ -441,6 +394,14 @@ class Window(QMainWindow):
             chunkCoeff = np.polyfit(xTimePlot[start:end], yMainDataPlot[start:end], degree)
             latexChunk = np.poly1d(chunkCoeff)
 
+            if status == True:
+                # Convert from poly to latex in string form
+                latexString = self.generateLatexString(latexChunk)
+                self.latexList.append(latexString)
+                self.chunksList.addItem(str(n))
+                
+                n+=1
+
             # Calc. the curve from equation of latex
             chunkData = np.zeros(int(end-start)) # Initilize the chunkData
             for j in range(int(end-start)):
@@ -449,10 +410,13 @@ class Window(QMainWindow):
             chunkError = self.MeanAbsoluteError(yMainDataPlot[start:end],chunkData)
             precentageError.append(chunkError)
 
+            if status == True:
+                self.mainPlot.plotChunks(chunkTime, chunkData)
+
         # Calculate the precentage error
         precentageErrorFinal = np.mean(precentageError)
 
-        return precentageErrorFinal, latexChunk, chunkTime, chunkData
+        return precentageErrorFinal
 
     def MeanAbsoluteError(self,y_true, y_chunk):
             y_true, y_chunk = np.array(y_true), np.array(y_chunk)
@@ -541,10 +505,55 @@ class Window(QMainWindow):
     # TODO: X AND Y in one function (self, "x or y", value)
     def yAxisChange(self, value):
         self.yErrorMap = value  
+        self.errorMapPlot.setAxesLabel("y", value)
 
     def xAxisChange(self, value):
         self.xErrorMap = value
+        self.errorMapPlot.setAxesLabel("x", value)
 
+    def generateErrorMap(self):
+        xRange = 0
+        yRange = 0
+
+        if self.yErrorMap == self.xErrorMap:
+            logging.error('The user chose the same for the x and y Axis') 
+            QMessageBox.information(self , "Error" , "Choose different axis for x and y.")
+            return
+        
+        if self.yErrorMap == "":
+            logging.error('Not chosen y axis') 
+            QMessageBox.information(self , "Error" , "Choose the y axis!")
+            return
+        
+        if self.xErrorMap == "":
+            logging.error('Not chosen x axis') 
+            QMessageBox.information(self , "Error" , "Choose the x axis!")
+            return
+        
+        if self.xErrorMap == "Overlap":
+            xRange = 25
+        elif self.xErrorMap == "Degree":
+            xRange = 8
+        elif self.xErrorMap == "No. of Chunks":
+            xRange = int(len(self.timePlot)/100)
+        
+        if self.yErrorMap == "Overlap":
+            yRange = 25
+        elif self.yErrorMap == "Degree":
+            yRange = 8
+        elif self.yErrorMap == "No. of Chunks":
+            yRange = int(len(self.timePlot)/10)
+
+        self.ButtonProgressBar.setText("Cencel")
+        
+        errorData = np.zeros((xRange,yRange))
+        for x in range(1,xRange-1):
+            for y in range(1,yRange-1):                
+                    errorData[x][y] = self.calcChunks(self.timePlot,self.mainDataPlot, x, y, 0, False)
+
+        self.errorMapPlot.set_data_channel(errorData)
+        self.errorMapPlot.plotErrorMap()
+    
     # Exit the application
     def exit(self):
         exitDlg = QMessageBox.critical(self,
