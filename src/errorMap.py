@@ -105,7 +105,9 @@ class MplCanvasErrorMap(FigureCanvasQTAgg):
         else :
             logging.error("Can't generate image plot because array is 2D.") 
 
-        self.fig.set_size(18, 10, forward=True)  
+        self.fig.set_figwidth(8)
+        self.fig.set_figheight(5)
+ 
         
     def clearSignal(self):
         self.axes.clear()

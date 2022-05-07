@@ -1,11 +1,7 @@
 # !/usr/bin/python
 
 # AdditionsQt
-from cProfile import label
-import chunk
-import string
 
-from sympy import degree, true
 from additionsQt import *
 # Threads
 from Threads import *
@@ -29,6 +25,8 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 # importing numpy and pandas
 import numpy as np
 import pandas as pd
+from scipy.stats import pearsonr
+
 
 # importing pyqtgraph as pg
 import pyqtgraph as pg
@@ -359,7 +357,7 @@ class Window(QMainWindow):
         self.chunksList.addItem("no.")
         self.latex.clear()
 
-        precentageErrorFinal = self.calcChunks(xTimePlot,yMainDataPlot,self.noChunks,self.degree,self.overlap,true)
+        precentageErrorFinal = self.calcChunks(xTimePlot,yMainDataPlot,self.noChunks,self.degree,self.overlap,True)
         # Calculate the precentage error
         self.ErrorPrecent.setText("{:.3f}%".format(precentageErrorFinal))
 
@@ -370,6 +368,7 @@ class Window(QMainWindow):
         overlapPeriod = overlap/100 * period
         
         self.latexList = list()
+        defaultError = list()
         precentageError = list()
         start, end = 0, 0
         i = 0 # iteration
@@ -399,15 +398,16 @@ class Window(QMainWindow):
                 latexString = self.generateLatexString(latexChunk)
                 self.latexList.append(latexString)
                 self.chunksList.addItem(str(n))
-                
                 n+=1
 
             # Calc. the curve from equation of latex
             chunkData = np.zeros(int(end-start)) # Initilize the chunkData
             for j in range(int(end-start)):
                 chunkData[j] = latexChunk(chunkTime[j])
-            
+
             chunkError = self.MeanAbsoluteError(yMainDataPlot[start:end],chunkData)
+            # defaultError = self.MeanAbsoluteError(yMainDataPlot[start:end],np.zeros(int(end-start)))
+            # chunkError = (chunkError/defaultError) * 100
             precentageError.append(chunkError)
 
             if status == True:
@@ -418,9 +418,10 @@ class Window(QMainWindow):
 
         return precentageErrorFinal
 
-    def MeanAbsoluteError(self,y_true, y_chunk):
+    def MeanAbsoluteError(self, y_true, y_chunk):
             y_true, y_chunk = np.array(y_true), np.array(y_chunk)
-            return ((np.mean(np.abs(y_true - y_chunk))/(np.abs(np.mean(y_true))))*100)
+            corr, _ = pearsonr(y_true, y_chunk)
+            return (1-corr)*100
 
     def generateLatexString(self, latexPoly):
         coeff = latexPoly.c
@@ -535,7 +536,7 @@ class Window(QMainWindow):
         elif self.xErrorMap == "Degree":
             xRange = 8
         elif self.xErrorMap == "No. of Chunks":
-            xRange = int(len(self.timePlot)/100)
+            xRange = int(len(self.timePlot)/10)
         
         if self.yErrorMap == "Overlap":
             yRange = 25
@@ -546,14 +547,34 @@ class Window(QMainWindow):
 
         self.ButtonProgressBar.setText("Cencel")
         
-        errorData = np.zeros((xRange,yRange))
-        for x in range(1,xRange-1):
-            for y in range(1,yRange-1):                
-                    errorData[x][y] = self.calcChunks(self.timePlot,self.mainDataPlot, x, y, 0, False)
+        errorsData = np.zeros((yRange,xRange))
+        for y in range(1,xRange-1):
+            for x in range(1,yRange-1):                
+                    errorsData[x][y] = self.chosenAxis(x,y)
+                    if x < 5 and y < 10 :
+                        print(x,y)
+                        print(errorsData[x][y])
 
-        self.errorMapPlot.set_data_channel(errorData)
+        self.errorMapPlot.set_data_channel(errorsData)
         self.errorMapPlot.plotErrorMap()
-    
+
+    def chosenAxis(self, x,y):
+        errorData = 0
+        if self.xErrorMap == "Overlap" and self.yErrorMap == "Degree":
+            errorData = self.calcChunks(self.timePlot,self.mainDataPlot, 1, y, x, False)
+        elif self.xErrorMap == "Overlap" and self.yErrorMap == "No. of Chunks":
+            errorData = self.calcChunks(self.timePlot,self.mainDataPlot, y, 1, x, False)
+        elif self.xErrorMap == "Degree" and self.yErrorMap == "Overlap":
+            errorData = self.calcChunks(self.timePlot,self.mainDataPlot, 1, x, y, False)
+        elif self.xErrorMap == "Degree" and self.yErrorMap == "No. of Chunks":
+            errorData = self.calcChunks(self.timePlot,self.mainDataPlot, y, x, 0, False)
+        elif self.xErrorMap == "No. of Chunks" and self.yErrorMap == "Degree":
+            errorData = self.calcChunks(self.timePlot,self.mainDataPlot, x, y, 0, False)
+        elif self.xErrorMap == "No. of Chunks" and self.yErrorMap == "Overlap":
+            errorData = self.calcChunks(self.timePlot,self.mainDataPlot, x, 1, y, False)
+        
+        return errorData
+
     # Exit the application
     def exit(self):
         exitDlg = QMessageBox.critical(self,
