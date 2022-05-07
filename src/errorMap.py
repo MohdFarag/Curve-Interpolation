@@ -5,8 +5,14 @@ import os
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+
 from matplotlib.figure import Figure
+from matplotlib.backends.backend_agg import FigureCanvas
 import numpy as np
+
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 
 # Logging configuration
 import logging
@@ -20,12 +26,11 @@ logging.basicConfig(filename="errlog.log",
 
 class MplCanvasErrorMap(FigureCanvasQTAgg):
     
-    def __init__(self, parent=None, width=8, height=5, dpi=100):
-        self.fig = Figure(figsize=(width, height), dpi=dpi)
+    def __init__(self, parent=None):
+        self.fig = Figure()
         self.fig.set_edgecolor("white")
             
         self.axes = self.fig.add_subplot(111)
-        self.axes.set_title("Error Map", fontweight ="bold")
 
         # Color bar
         colormap = plt.cm.get_cmap("rainbow")
@@ -88,6 +93,19 @@ class MplCanvasErrorMap(FigureCanvasQTAgg):
     def set_data_channel(self, data_channel):
         self.data_channel = data_channel
 
+    def set_size(self, w, h):
+        
+        """ w, h: width, height in inches """
+        l = self.fig.subplotpars.left
+        r = self.fig.subplotpars.right
+        t = self.fig.subplotpars.top
+        b = self.fig.subplotpars.bottom
+        
+        figw = float(w)/(r-l)
+        figh = float(h)/(t-b)
+        
+        self.fig.set_size_inches(figw, figh)
+
     def setAxesLabel(self,axes,title):
         if axes=="x":
             self.axes.set_xlabel(title)
@@ -102,12 +120,41 @@ class MplCanvasErrorMap(FigureCanvasQTAgg):
         if self.data_channel.ndim > 1 :
             self.axes.imshow(self.data_channel)
             self.draw()  
+            # self.set_size(8,5)
+            # self.fig.set_figwidth(8)
+            # self.fig.set_figheight(5)
         else :
             logging.error("Can't generate image plot because array is 2D.") 
-
-        self.fig.set_figwidth(8)
-        self.fig.set_figheight(5)
- 
         
     def clearSignal(self):
         self.axes.clear()
+
+class MatplotlibWidget(QWidget):
+    """
+    Implements a Matplotlib figure inside a QWidget.
+    Use getFigure() and redraw() to interact with matplotlib.
+    
+    Example::
+    
+        mw = MatplotlibWidget()
+        subplot = mw.getFigure().add_subplot(111)
+        subplot.plot(x,y)
+        mw.draw()
+    """
+    
+    def __init__(self, size=(5.0, 4.0), dpi=100):
+        QWidget.__init__(self)
+        self.fig = Figure(size, dpi=dpi)
+        self.canvas = FigureCanvasQTAgg(self.fig)
+        self.canvas.setParent(self)
+        
+        self.vbox = QVBoxLayout()
+        self.vbox.addWidget(self.canvas)
+        
+        self.setLayout(self.vbox)
+
+    def getFigure(self):
+        return self.fig
+        
+    def draw(self):
+        self.canvas.draw()

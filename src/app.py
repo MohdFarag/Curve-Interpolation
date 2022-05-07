@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
-from errorMap import MplCanvasErrorMap
+from errorMap import MplCanvasErrorMap, MatplotlibWidget
 from plotterMatplotlib import MplCanvasPlotter
 
 from matplotlib.figure import Figure
@@ -161,7 +161,7 @@ class Window(QMainWindow):
         degreeLabel = QLabel("Polynomial Degree")
         self.degreeBox = QSpinBox(self)
         self.degreeBox.setMinimum(1)
-        self.degreeBox.setMaximum(8)
+        self.degreeBox.setMaximum(5)
         self.degreeBox.setStyleSheet(f"""font-size:14px; 
                             padding: 5px 15px; 
                             background: {COLOR4};
@@ -271,16 +271,20 @@ class Window(QMainWindow):
         self.ErrorPrecent.setStyleSheet("padding:3px; font-size:15px;")
         self.ErrorPrecent.setDisabled(True)
 
-        self.errorMapPlot = MplCanvasErrorMap("Error Map",8,5)
-        progressLayout = QHBoxLayout()
+        self.errorMapPlot = MplCanvasErrorMap("Error Map")
+        # self.errorMapPlot = MatplotlibWidget()
         
-        progressbar = QProgressBar()
-        progressbar.setStyleSheet("padding:2px;")
+        progressLayout = QHBoxLayout()
+        self.progressbar = QProgressBar()
         self.ButtonProgressBar = QPushButton("Start")
         self.ButtonProgressBar.setStyleSheet("padding:2px; font-size:15px;")
+        self.cancelButtonProgressBar = QPushButton("Cancel")
+        self.cancelButtonProgressBar.setStyleSheet("padding:2px; font-size:15px;")
+        self.cancelButtonProgressBar.hide()
 
-        progressLayout.addWidget(progressbar,10)
+        progressLayout.addWidget(self.progressbar,10)
         progressLayout.addWidget(self.ButtonProgressBar,2)
+        progressLayout.addWidget(self.cancelButtonProgressBar,2)
 
         leftLayout.addWidget(self.ErrorPrecent)
         leftLayout.addWidget(self.errorMapPlot)
@@ -306,6 +310,7 @@ class Window(QMainWindow):
 
         # Error map
         self.ButtonProgressBar.clicked.connect(lambda: self.generateErrorMap())
+        self.cancelButtonProgressBar.clicked.connect(lambda: self.threadCancel())
 
         self.xAxisOverLap.clicked.connect(lambda: self.xAxisChange(self.xAxisOverLap.text()))
         self.xAxisDegree.clicked.connect(lambda: self.xAxisChange(self.xAxisDegree.text()))
@@ -512,9 +517,18 @@ class Window(QMainWindow):
         self.xErrorMap = value
         self.errorMapPlot.setAxesLabel("x", value)
 
+    def threadCancel(self):
+        if self.cancelButtonProgressBar.text() == "Cancel":
+            self.thread.quit()
+            self.thread.exit()
+            return
+
     def generateErrorMap(self):
-        xRange = 0
-        yRange = 0
+
+        # Step 2: Create a QThread object
+        self.thread = QThread()
+        # Step 3: Create a worker object
+        self.worker = ErrorMapWorker()
 
         if self.yErrorMap == self.xErrorMap:
             logging.error('The user chose the same for the x and y Axis') 
@@ -530,51 +544,40 @@ class Window(QMainWindow):
             logging.error('Not chosen x axis') 
             QMessageBox.information(self , "Error" , "Choose the x axis!")
             return
-        
-        if self.xErrorMap == "Overlap":
-            xRange = 25
-        elif self.xErrorMap == "Degree":
-            xRange = 8
-        elif self.xErrorMap == "No. of Chunks":
-            xRange = int(len(self.timePlot)/10)
-        
-        if self.yErrorMap == "Overlap":
-            yRange = 25
-        elif self.yErrorMap == "Degree":
-            yRange = 8
-        elif self.yErrorMap == "No. of Chunks":
-            yRange = int(len(self.timePlot)/10)
 
-        self.ButtonProgressBar.setText("Cencel")
+        # Step 4: Move worker to the thread
+        self.worker.moveToThread(self.thread)
+
+        # Step 5: Connect signals and slots
+        self.thread.started.connect(lambda: self.worker.run(self.timePlot, self.mainDataPlot, self.xErrorMap, self.yErrorMap))
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.progress.connect(self.reportProgress)
+        # Step 6: Start the thread
+        self.thread.start()
+
+        # Final resets
+        self.ButtonProgressBar.hide()
+        self.cancelButtonProgressBar.show()
+
+        self.worker.errorsData.connect(self.errorMapPlot.set_data_channel)
+        self.thread.finished.connect(
+            lambda: self.ButtonProgressBar.show()
+        )
+        self.thread.finished.connect(
+            lambda: self.cancelButtonProgressBar.hide()
+        )
+        self.thread.finished.connect(
+            lambda: self.errorMapPlot.plotErrorMap()
+        )
+        self.thread.finished.connect(
+            lambda: self.progressbar.setValue(0)
+        )
         
-        errorsData = np.zeros((yRange,xRange))
-        for y in range(1,xRange-1):
-            for x in range(1,yRange-1):                
-                    errorsData[x][y] = self.chosenAxis(x,y)
-                    if x < 5 and y < 10 :
-                        print(x,y)
-                        print(errorsData[x][y])
-
-        self.errorMapPlot.set_data_channel(errorsData)
-        self.errorMapPlot.plotErrorMap()
-
-    def chosenAxis(self, x,y):
-        errorData = 0
-        if self.xErrorMap == "Overlap" and self.yErrorMap == "Degree":
-            errorData = self.calcChunks(self.timePlot,self.mainDataPlot, 1, y, x, False)
-        elif self.xErrorMap == "Overlap" and self.yErrorMap == "No. of Chunks":
-            errorData = self.calcChunks(self.timePlot,self.mainDataPlot, y, 1, x, False)
-        elif self.xErrorMap == "Degree" and self.yErrorMap == "Overlap":
-            errorData = self.calcChunks(self.timePlot,self.mainDataPlot, 1, x, y, False)
-        elif self.xErrorMap == "Degree" and self.yErrorMap == "No. of Chunks":
-            errorData = self.calcChunks(self.timePlot,self.mainDataPlot, y, x, 0, False)
-        elif self.xErrorMap == "No. of Chunks" and self.yErrorMap == "Degree":
-            errorData = self.calcChunks(self.timePlot,self.mainDataPlot, x, y, 0, False)
-        elif self.xErrorMap == "No. of Chunks" and self.yErrorMap == "Overlap":
-            errorData = self.calcChunks(self.timePlot,self.mainDataPlot, x, 1, y, False)
-        
-        return errorData
-
+    def reportProgress(self, n):
+        self.progressbar.setValue(n)
+    
     # Exit the application
     def exit(self):
         exitDlg = QMessageBox.critical(self,
