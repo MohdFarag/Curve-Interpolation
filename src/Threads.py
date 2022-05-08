@@ -125,5 +125,4 @@ class ErrorMapWorker(QObject):
 
 
     def stop(self):
-        print("stop")
         self._isRunning = False

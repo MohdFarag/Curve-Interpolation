@@ -87,7 +87,7 @@ class MplCanvasPlotter(FigureCanvasQTAgg):
         self.draw()
 
     def plotChunks(self,x, y):
-        self.axes.plot(x, y)
+        self.axes.plot(x, y, '--')
         self.draw()
 
     def clearChunks(self):
