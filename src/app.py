@@ -1,9 +1,7 @@
 # !/usr/bin/python
 
 # AdditionsQt
-
 from functools import partial
-from sympy import false
 from additionsQt import *
 # Threads
 from Threads import *
@@ -350,7 +348,7 @@ class Window(QMainWindow):
     def chunkLatexChange(self, i):
         # Update label
         try:
-            latexPixmap = self.latexToLabel(self.latexList[int(i)-1],15)
+            latexPixmap = self.latexToLabel(self.latexList[int(i)-1], 15)
             # Update latex text
             self.latex.setPixmap(latexPixmap)
         except: 
@@ -390,6 +388,7 @@ class Window(QMainWindow):
         self.latex.clear()
 
         if self.precentage == 100 :
+            self.noChunksBox.setDisabled(False)
             self.extraPolyMode == False
             precentageErrorFinal = self.calcChunks(xTimePlot,yMainDataPlot,self.noChunks,self.degree,self.overlap,True)
         else :
@@ -398,8 +397,9 @@ class Window(QMainWindow):
             self.extraPolyMode = True
             self.noChunksBox.setValue(1)
             self.degreeBox.setMaximum(100)
+            self.noChunksBox.setDisabled(True)
             precentageErrorFinal = self.calcChunks(xTimePlot,yMainDataPlot,self.noChunks,self.degree,self.overlap,True)
-            precentageErrorFinal = self.calcExtrapolation(self.timePlot[change-1:], self.mainDataPlot[change-1:], self.degree, change-1)
+            self.calcExtrapolation(self.timePlot[change-1:], self.mainDataPlot[change-1:], self.degree, change-1)
 
         # Calculate the precentage error
         self.ErrorPrecent.setText("{:.3f}%".format(precentageErrorFinal))
@@ -431,9 +431,6 @@ class Window(QMainWindow):
                 i+=period
                 startOverlap = int(i-overlapPeriod)
                 endoverlap = int(i)
-
-            # print("start=",start,"end=",end)
-            # print(startOverlap,endoverlap)
             
             if i+period-overlapPeriod > len(xTimePlot):
                 end = len(xTimePlot)
@@ -469,11 +466,14 @@ class Window(QMainWindow):
                     
                     if len(prevOverlapChunkData) != len(currOverlapChunkData):
                         currOverlapChunkData = np.append(currOverlapChunkData,currOverlapChunkData[-1])
-                    chunkOverlap = np.mean([prevOverlapChunkData,currOverlapChunkData],axis=0)
-                        
+                        TimeOverLap = np.append(TimeOverLap,TimeOverLap[-1]+1)
+
+                    print(len(prevOverlapChunkData), len(currOverlapChunkData))
+                    
+                    chunkOverlap = np.mean([prevOverlapChunkData,currOverlapChunkData], axis=0)
+
                     if status == True:
                         self.mainPlot.plotChunks(TimeOverLap, chunkOverlap)
-
 
             if status == True:
                 if overlap == 0:
@@ -494,29 +494,22 @@ class Window(QMainWindow):
         return precentageErrorFinal
 
     def calcExtrapolation(self, xTimePlot, yMainDataPlot, degree, change):
-        # Calc. the period of each chunk        
-        precentageError = list()
-
         # Chunk Time
-        chunkTime = xTimePlot
+        chunkTime = self.timePlot[:len(self.timePlot)-change]
         # Poly fit
         chunkCoeff = np.polyfit(self.timePlot[:change], self.mainDataPlot[:change], degree)
         latexChunk = np.poly1d(chunkCoeff)
 
         # Calc. the curve from equation of latex
-        chunkData = np.zeros(len(xTimePlot)) # Initilize the chunkData
-        for j in range(len(xTimePlot)):
+        chunkData = np.zeros(len(chunkTime)) # Initilize the chunkData
+        for j in range(len(chunkTime)):
             chunkData[j] = latexChunk(chunkTime[j])
 
-        chunkError = self.MeanAbsoluteError(yMainDataPlot, chunkData)
-        precentageError.append(chunkError)
-        
-        self.mainPlot.plotChunks(chunkTime, chunkData)
+        chunkData = np.append(latexChunk(self.timePlot[change-1]), chunkData)
+        xTimePlot = np.append(xTimePlot, xTimePlot[-1]+1)
+        self.mainPlot.plotChunks(xTimePlot, chunkData)
 
-        # Calculate the precentage error
-        precentageErrorFinal = np.mean(precentageError)
-
-        return precentageErrorFinal
+        return
 
     def MeanAbsoluteError(self, y_true, y_chunk):
             y_true, y_chunk = np.array(y_true), np.array(y_chunk)
@@ -687,4 +680,3 @@ class Window(QMainWindow):
         if exitDlg == QMessageBox.Yes:
             # Exit the application
             sys.exit()
-
