@@ -33,14 +33,14 @@ class MplCanvasErrorMap(FigureCanvasQTAgg):
         self.axes = self.fig.add_subplot(111)
 
         # Color bar
-        colormap = plt.cm.get_cmap("rainbow")
+        colormap = plt.cm.get_cmap("viridis")
         sm = plt.cm.ScalarMappable(cmap=colormap)
         self.colorBarSpectrogram = self.fig.colorbar(sm)
 
         super(MplCanvasErrorMap, self).__init__(self.fig)
 
     data_channel = [np.random.randint(-10,10) for i in range(500)]
-    colorPalette = "rainbow"
+    colorPalette = "viridis"
 
     def setMode(self, theme):
         if theme == "Dark":
@@ -79,22 +79,23 @@ class MplCanvasErrorMap(FigureCanvasQTAgg):
         self.axes.set_facecolor(axesColor)
 
     def addColorBar(self):
-        try:
-            colormap = plt.cm.get_cmap(self.colorPalette)
-            sm = plt.cm.ScalarMappable(cmap=colormap)
-            self.colorBarSpectrogram = self.fig.colorbar(sm)
-            self.colorBarSpectrogram.solids.set_edgecolor("face")
-        except:
-            logging.error("Failed to add color bar.")
+        colormap = plt.cm.get_cmap(self.colorPalette)
+        sm = plt.cm.ScalarMappable(cmap=colormap)
+        self.colorBarSpectrogram = self.fig.colorbar(sm)
+        self.colorBarSpectrogram.solids.set_edgecolor("face")
 
+    def updateColorBar(self):
+        colormap = plt.cm.get_cmap(self.colorPalette + "_r")
+        sm = plt.cm.ScalarMappable(cmap=colormap)
+        self.colorBarSpectrogram.update_normal(sm)
+    
     def set_color(self, colorPalette):
         self.colorPalette = colorPalette
 
     def set_data_channel(self, data_channel):
         self.data_channel = data_channel
 
-    def set_size(self, w, h):
-        
+    def set_size(self, w, h):        
         """ w, h: width, height in inches """
         l = self.fig.subplotpars.left
         r = self.fig.subplotpars.right
@@ -118,43 +119,10 @@ class MplCanvasErrorMap(FigureCanvasQTAgg):
         self.data_channel = np.array(self.data_channel)
 
         if self.data_channel.ndim > 1 :
-            self.axes.imshow(self.data_channel)
+            self.axes.imshow(self.data_channel, cmap=self.colorPalette , interpolation = 'nearest', vmin=0, vmax=100, extent=[0,20,0,10])
             self.draw()  
-            # self.set_size(8,5)
-            # self.fig.set_figwidth(8)
-            # self.fig.set_figheight(5)
         else :
             logging.error("Can't generate image plot because array is 2D.") 
         
     def clearSignal(self):
         self.axes.clear()
-
-class MatplotlibWidget(QWidget):
-    """
-    Implements a Matplotlib figure inside a QWidget.
-    Use getFigure() and redraw() to interact with matplotlib.
-    
-    Example::
-    
-        mw = MatplotlibWidget()
-        subplot = mw.getFigure().add_subplot(111)
-        subplot.plot(x,y)
-        mw.draw()
-    """
-    
-    def __init__(self, size=(5.0, 4.0), dpi=100):
-        QWidget.__init__(self)
-        self.fig = Figure(size, dpi=dpi)
-        self.canvas = FigureCanvasQTAgg(self.fig)
-        self.canvas.setParent(self)
-        
-        self.vbox = QVBoxLayout()
-        self.vbox.addWidget(self.canvas)
-        
-        self.setLayout(self.vbox)
-
-    def getFigure(self):
-        return self.fig
-        
-    def draw(self):
-        self.canvas.draw()

@@ -19,36 +19,45 @@ class ErrorMapWorker(QObject):
     finished = pyqtSignal()
     progress = pyqtSignal(int)
     errorsData = pyqtSignal(np.ndarray)
+    
+    def __init__(self):
+        super(ErrorMapWorker, self).__init__()
+        self._isRunning = True
 
-    def run(self, timePlot, mainDataPlot, xErrorMap, yErrorMap):
-        xRange = 0
-        yRange = 0
+    def run(self, timePlot, mainDataPlot, xErrorMap, yErrorMap): 
+        if not self._isRunning :
+            self._isRunning = True
 
-        if xErrorMap == "Overlap":
-            xRange = 25
-        elif xErrorMap == "Degree":
-            xRange = 5
-        elif xErrorMap == "No. of Chunks":
-            xRange = int(len(timePlot)/20)
-        
-        if yErrorMap == "Overlap":
-            yRange = 25
-        elif yErrorMap == "Degree":
-            yRange = 5
-        elif yErrorMap == "No. of Chunks":
-            yRange = int(len(timePlot)/20)
+        xRange = self.getRanges(xErrorMap,timePlot)
+        yRange = self.getRanges(yErrorMap,timePlot)
 
         i = 1
         errorsData = np.zeros((yRange,xRange))
-        for y in range(1,xRange):
-            for x in range(1,yRange):                
-                errorsData[x][y] = self.chosenAxis(timePlot, mainDataPlot, xErrorMap, yErrorMap, x, y)
-                self.progress.emit(int(i/((xRange-1)*(yRange-1))*100))
-                i += 1
+        for y in range(1,yRange):
+            for x in range(1,xRange):
+                if self._isRunning :                
+                    errorsData[y][x] = self.chosenAxis(timePlot, mainDataPlot, xErrorMap, yErrorMap, x, y)
 
-        self.errorsData.emit(errorsData)
+                    self.progress.emit(int(i/((xRange-1)*(yRange-1))*100))
+                    i += 1
+
+        if self._isRunning :
+            self.errorsData.emit(errorsData[::-1])
+        
         self.finished.emit()
-                
+
+    def getRanges(self, axisErrorMap,timePlot):
+        axisRange = 0
+
+        if axisErrorMap == "Overlap":
+            axisRange = 25
+        elif axisErrorMap == "Degree":
+            axisRange = 5
+        elif axisErrorMap == "No. of Chunks":
+            axisRange = int(len(timePlot)/20)
+        
+        return axisRange
+
     def chosenAxis(self, timePlot, mainDataPlot, xErrorMap, yErrorMap, x, y):
         errorData = 0
         if xErrorMap == "Overlap" and yErrorMap == "Degree":
@@ -73,11 +82,9 @@ class ErrorMapWorker(QObject):
         # Calc. the overlap period
         overlapPeriod = overlap/100 * period
         
-        defaultError = list()
         precentageError = list()
         start, end = 0, 0
         i = 0 # iteration
-        n = 1
         while i+period-overlapPeriod <= len(xTimePlot):
             # Calculate the start and end of each chunk
             if i != 0:
@@ -115,3 +122,8 @@ class ErrorMapWorker(QObject):
             y_true, y_chunk = np.array(y_true), np.array(y_chunk)
             corr, _ = pearsonr(y_true, y_chunk)
             return (1-corr)*100
+
+
+    def stop(self):
+        print("stop")
+        self._isRunning = False

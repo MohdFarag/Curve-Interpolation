@@ -2,6 +2,8 @@
 
 # AdditionsQt
 
+from functools import partial
+from sympy import false
 from additionsQt import *
 # Threads
 from Threads import *
@@ -16,7 +18,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
-from errorMap import MplCanvasErrorMap, MatplotlibWidget
+from errorMap import MplCanvasErrorMap
 from plotterMatplotlib import MplCanvasPlotter
 
 from matplotlib.figure import Figure
@@ -55,6 +57,9 @@ class Window(QMainWindow):
         logging.debug("Application started")
 
         ### Initialize Variable
+        self.thread = QThread()
+        self.worker = ErrorMapWorker()
+
         self.mainDataPlot = np.array([])
         self.timePlot = np.array([])
         
@@ -64,6 +69,9 @@ class Window(QMainWindow):
         self.noChunks = 1
         self.degree = 1
         self.latexList = list()
+
+        # extrapolation variables
+        self.extraPolyMode = False
         
         # Error map variables
         self.yErrorMap = ""
@@ -255,14 +263,27 @@ class Window(QMainWindow):
 
         self.yAxisOverLap = QRadioButton("Overlap")
         self.yAxisDegree = QRadioButton("Degree")
-        self.yAxisChunks = QRadioButton("No. of Chunks")        
-        
+        self.yAxisChunks = QRadioButton("No. of Chunks")    
+
         yAxisLayout.addWidget(self.yAxisOverLap)
         yAxisLayout.addWidget(self.yAxisDegree)
         yAxisLayout.addWidget(self.yAxisChunks)
 
+        # Color palette
+        colorMapGroupBox = QGroupBox("Cmap")
+        colorMapAxisLayout = QHBoxLayout()
+        colorMapGroupBox.setLayout(colorMapAxisLayout)
+
+        self.cmapList = QComboBox()
+        self.cmapList.addItem("viridis")
+        self.cmapList.addItem("plasma")
+        self.cmapList.addItem("inferno")
+        self.cmapList.addItem("magma")
+        self.cmapList.addItem("rainbow") 
+
         mapPanelLayout.addWidget(xAxisGroupBox)
         mapPanelLayout.addWidget(yAxisGroupBox)
+        mapPanelLayout.addWidget(self.cmapList)
 
         # Error Map Plot
         leftLayout = QVBoxLayout()
@@ -272,10 +293,9 @@ class Window(QMainWindow):
         self.ErrorPrecent.setDisabled(True)
 
         self.errorMapPlot = MplCanvasErrorMap("Error Map")
-        # self.errorMapPlot = MatplotlibWidget()
         
         progressLayout = QHBoxLayout()
-        self.progressbar = QProgressBar()
+        self.progressbar = QProgressBar(self, minimum=0, maximum=100, objectName="RedProgressBar")
         self.ButtonProgressBar = QPushButton("Start")
         self.ButtonProgressBar.setStyleSheet("padding:2px; font-size:15px;")
         self.cancelButtonProgressBar = QPushButton("Cancel")
@@ -310,7 +330,7 @@ class Window(QMainWindow):
 
         # Error map
         self.ButtonProgressBar.clicked.connect(lambda: self.generateErrorMap())
-        self.cancelButtonProgressBar.clicked.connect(lambda: self.threadCancel())
+        self.cancelButtonProgressBar.clicked.connect(lambda: self.worker.stop())
 
         self.xAxisOverLap.clicked.connect(lambda: self.xAxisChange(self.xAxisOverLap.text()))
         self.xAxisDegree.clicked.connect(lambda: self.xAxisChange(self.xAxisDegree.text()))
@@ -319,6 +339,13 @@ class Window(QMainWindow):
         self.yAxisOverLap.clicked.connect(lambda: self.yAxisChange(self.yAxisOverLap.text()))
         self.yAxisDegree.clicked.connect(lambda: self.yAxisChange(self.yAxisDegree.text()))
         self.yAxisChunks.clicked.connect(lambda: self.yAxisChange(self.yAxisChunks.text()))
+
+        self.cmapList.currentTextChanged.connect(self.colorErrorMapChange)
+
+    def colorErrorMapChange(self, color):
+        self.statusBar.showMessage("Spectrogram platte color is changed to " + color + ".")
+        self.errorMapPlot.set_color(color)
+        self.errorMapPlot.updateColorBar()
 
     def chunkLatexChange(self, i):
         # Update label
@@ -362,7 +389,18 @@ class Window(QMainWindow):
         self.chunksList.addItem("no.")
         self.latex.clear()
 
-        precentageErrorFinal = self.calcChunks(xTimePlot,yMainDataPlot,self.noChunks,self.degree,self.overlap,True)
+        if self.precentage == 100 :
+            self.extraPolyMode == False
+            precentageErrorFinal = self.calcChunks(xTimePlot,yMainDataPlot,self.noChunks,self.degree,self.overlap,True)
+        else :
+            if self.extraPolyMode == False:
+                QMessageBox.information(self , "Extrapolation" , "You are in extrapolation mode now.")
+            self.extraPolyMode = True
+            self.noChunksBox.setValue(1)
+            self.degreeBox.setMaximum(100)
+            precentageErrorFinal = self.calcChunks(xTimePlot,yMainDataPlot,self.noChunks,self.degree,self.overlap,True)
+            precentageErrorFinal = self.calcExtrapolation(self.timePlot[change-1:], self.mainDataPlot[change-1:], self.degree, change-1)
+
         # Calculate the precentage error
         self.ErrorPrecent.setText("{:.3f}%".format(precentageErrorFinal))
 
@@ -372,12 +410,15 @@ class Window(QMainWindow):
         # Calc. the overlap period
         overlapPeriod = overlap/100 * period
         
+        prevOverlapChunkData = list()
+        currOverlapChunkData = list()
         self.latexList = list()
-        defaultError = list()
         precentageError = list()
+        TimeOverLap = list()
         start, end = 0, 0
         i = 0 # iteration
         n = 1
+        overlapCount = 0
         while i+period-overlapPeriod <= len(xTimePlot):
             # Calculate the start and end of each chunk
             if i != 0:
@@ -388,6 +429,11 @@ class Window(QMainWindow):
                 start = int(i)
                 end = int(i+period)
                 i+=period
+                startOverlap = int(i-overlapPeriod)
+                endoverlap = int(i)
+
+            # print("start=",start,"end=",end)
+            # print(startOverlap,endoverlap)
             
             if i+period-overlapPeriod > len(xTimePlot):
                 end = len(xTimePlot)
@@ -409,14 +455,63 @@ class Window(QMainWindow):
             chunkData = np.zeros(int(end-start)) # Initilize the chunkData
             for j in range(int(end-start)):
                 chunkData[j] = latexChunk(chunkTime[j])
+            
+            if overlap != 0:
+                if overlapCount == 0:
+                    prevOverlapChunkData = chunkData[startOverlap:endoverlap]
+                    overlapCount = 1
+                else:
+                    currOverlapChunkData = chunkData[:int(overlapPeriod)]
+                    overlapCount = 0
+                    TimeOverLap = chunkTime[:int(overlapPeriod)]
+                    
+                    print(len(prevOverlapChunkData), len(currOverlapChunkData))
+                    
+                    if len(prevOverlapChunkData) != len(currOverlapChunkData):
+                        currOverlapChunkData = np.append(currOverlapChunkData,currOverlapChunkData[-1])
+                    chunkOverlap = np.mean([prevOverlapChunkData,currOverlapChunkData],axis=0)
+                        
+                    if status == True:
+                        self.mainPlot.plotChunks(TimeOverLap, chunkOverlap)
+
+
+            if status == True:
+                if overlap == 0:
+                    self.mainPlot.plotChunks(chunkTime, chunkData)
+                else:
+                    overlapPeriod = int(overlapPeriod)
+                    self.mainPlot.plotChunks(chunkTime[overlapPeriod:-overlapPeriod], chunkData[overlapPeriod:-overlapPeriod])
 
             chunkError = self.MeanAbsoluteError(yMainDataPlot[start:end],chunkData)
             # defaultError = self.MeanAbsoluteError(yMainDataPlot[start:end],np.zeros(int(end-start)))
             # chunkError = (chunkError/defaultError) * 100
             precentageError.append(chunkError)
 
-            if status == True:
-                self.mainPlot.plotChunks(chunkTime, chunkData)
+
+        # Calculate the precentage error
+        precentageErrorFinal = np.mean(precentageError)
+
+        return precentageErrorFinal
+
+    def calcExtrapolation(self, xTimePlot, yMainDataPlot, degree, change):
+        # Calc. the period of each chunk        
+        precentageError = list()
+
+        # Chunk Time
+        chunkTime = xTimePlot
+        # Poly fit
+        chunkCoeff = np.polyfit(self.timePlot[:change], self.mainDataPlot[:change], degree)
+        latexChunk = np.poly1d(chunkCoeff)
+
+        # Calc. the curve from equation of latex
+        chunkData = np.zeros(len(xTimePlot)) # Initilize the chunkData
+        for j in range(len(xTimePlot)):
+            chunkData[j] = latexChunk(chunkTime[j])
+
+        chunkError = self.MeanAbsoluteError(yMainDataPlot, chunkData)
+        precentageError.append(chunkError)
+        
+        self.mainPlot.plotChunks(chunkTime, chunkData)
 
         # Calculate the precentage error
         precentageErrorFinal = np.mean(precentageError)
@@ -521,6 +616,9 @@ class Window(QMainWindow):
         if self.cancelButtonProgressBar.text() == "Cancel":
             self.thread.quit()
             self.thread.exit()
+            self.worker.destroyed()
+            self.worker.killTimer()
+            self.worker.disconnect()
             return
 
     def generateErrorMap(self):
@@ -532,24 +630,24 @@ class Window(QMainWindow):
 
         if self.yErrorMap == self.xErrorMap:
             logging.error('The user chose the same for the x and y Axis') 
-            QMessageBox.information(self , "Error" , "Choose different axis for x and y.")
+            QMessageBox.warning(self , "Error" , "Choose different axis for x and y.")
             return
         
         if self.yErrorMap == "":
             logging.error('Not chosen y axis') 
-            QMessageBox.information(self , "Error" , "Choose the y axis!")
+            QMessageBox.warning(self , "Error" , "Choose the y axis!")
             return
         
         if self.xErrorMap == "":
             logging.error('Not chosen x axis') 
-            QMessageBox.information(self , "Error" , "Choose the x axis!")
+            QMessageBox.warning(self , "Error" , "Choose the x axis!")
             return
 
         # Step 4: Move worker to the thread
         self.worker.moveToThread(self.thread)
 
         # Step 5: Connect signals and slots
-        self.thread.started.connect(lambda: self.worker.run(self.timePlot, self.mainDataPlot, self.xErrorMap, self.yErrorMap))
+        self.thread.started.connect(partial(self.worker.run,self.timePlot, self.mainDataPlot, self.xErrorMap, self.yErrorMap))
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
