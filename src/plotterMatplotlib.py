@@ -90,9 +90,13 @@ class MplCanvasPlotter(FigureCanvasQTAgg):
         self.axes.plot(x, y, '--')
         self.draw()
 
-    def clearChunks(self):
+    def plotSignalOnly(self):
         self.clearSignal()
         self.plotSignal()
+    
+    def plotSpline(self, x1, y1, x2,y2):
+        self.axes.plot(x1, y1, 'o', x2, y2)
+        self.draw()
 
     def clearSignal(self):
         self.axes.clear()

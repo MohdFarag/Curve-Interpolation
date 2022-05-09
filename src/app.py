@@ -2,7 +2,8 @@
 
 # AdditionsQt
 from functools import partial
-from tkinter import messagebox
+
+import scipy
 from additionsQt import *
 # Threads
 from Threads import *
@@ -27,6 +28,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr
+from scipy.interpolate import splev, splrep
 
 
 # importing pyqtgraph as pg
@@ -72,6 +74,10 @@ class Window(QMainWindow):
         # extrapolation variables
         self.extraPolyMode = False
         
+        # spline variables
+        self.noSamples = 1
+        self.degreeSpline = 1
+
         # Error map variables
         self.yErrorMap = ""
         self.xErrorMap = ""
@@ -147,74 +153,27 @@ class Window(QMainWindow):
         # Main layout
         mainLayout = QHBoxLayout()
         
-        panelGroupBox = QGroupBox("Main Panel")
+        panelGroupBox = QGroupBox("Interpolation Panel")
         mainPanel = QVBoxLayout()
         panelGroupBox.setLayout(mainPanel)
 
-        # Num. of chunks Text Box
-        noChunksLayout = QVBoxLayout()
-        noChunksLabel = QLabel("Num. of chunks")
-        self.noChunksBox = QSpinBox(self)
-        self.noChunksBox.setMinimum(1)
-        self.noChunksBox.setStyleSheet(f"""font-size:14px; 
-                                padding: 5px 15px; 
-                                background: {COLOR4};
-                                color: {COLOR1};""")
-        noChunksLayout.addWidget(noChunksLabel,1)
-        noChunksLayout.addWidget(self.noChunksBox,5)
+        tabs = QTabWidget()
+        tabs.setStyleSheet(f"""font-size:15px;""")
 
-        # Polynomial Degree Text Box
-        degreeLayout = QVBoxLayout()
-        degreeLabel = QLabel("Polynomial Degree")
-        self.degreeBox = QSpinBox(self)
-        self.degreeBox.setMinimum(1)
-        self.degreeBox.setMaximum(8)
-        self.degreeBox.setStyleSheet(f"""font-size:14px; 
-                            padding: 5px 15px; 
-                            background: {COLOR4};
-                            color: {COLOR1};""")
-        degreeLayout.addWidget(degreeLabel,1)
-        degreeLayout.addWidget(self.degreeBox,5)
+        # TODO: Add tabs and its functions
+        self.polyTab = QWidget()
+        self.polyLayout()
+        tabs.addTab(self.polyTab, "Polynomial")
 
-        # Overlap Text Box
-        overlapLayout = QVBoxLayout()
-        overlapLabel = QLabel("Overlap %")
-        
-        overlapBoxLayout = QHBoxLayout()
-        self.overlapBox = QSpinBox(self)
-        self.overlapBox.setMinimum(0)
-        self.overlapBox.setMaximum(25)
-        self.overlapBox.setStyleSheet(f"""font-size:14px; 
-                            padding: 5px 15px; 
-                            background: {COLOR4};
-                            color: {COLOR1};""")
-        overlapBoxLayout.addWidget(self.overlapBox, 20)
-        overlapBoxLayout.addWidget(QLabel("%"), 1)
-        
-        overlapLayout.addWidget(overlapLabel,1)
-        overlapLayout.addLayout(overlapBoxLayout,5)
+        self.splineTab = QWidget()
+        self.splineLayout()
+        tabs.addTab(self.splineTab, "Spline")
 
-        # Overlap Text Box
-        precentageLayout = QVBoxLayout()
-        precentageLabel = QLabel("Efficiency %")
-        
-        sliderLayout = QHBoxLayout()
-        self.precentageSlider = QSlider(Qt.Horizontal)
-        self.precentageSlider.setMinimum(1)
-        self.precentageSlider.setMaximum(100)
-        self.precentageSlider.setValue(100)
-        
-        self.precentageCount = QLabel("100%")
-        sliderLayout.addWidget(self.precentageSlider,10)
-        sliderLayout.addWidget(self.precentageCount,1)
+        self.bicubicTab = QWidget()
+        self.bicubicLayout()
+        tabs.addTab(self.bicubicTab, "Bicubic")
 
-        precentageLayout.addWidget(precentageLabel,1)
-        precentageLayout.addLayout(sliderLayout,5)
-
-        mainPanel.addLayout(noChunksLayout)
-        mainPanel.addLayout(degreeLayout)
-        mainPanel.addLayout(overlapLayout)
-        mainPanel.addLayout(precentageLayout)
+        mainPanel.addWidget(tabs)
 
         # Main Plot
         plotLayout = QVBoxLayout()
@@ -318,6 +277,118 @@ class Window(QMainWindow):
 
         centralMainWindow.setLayout(outerLayout)
 
+    def polyLayout(self):
+        polyLayout = QVBoxLayout()
+
+        # Num. of chunks Text Box
+        noChunksLayout = QVBoxLayout()
+        noChunksLabel = QLabel("Num. of chunks")
+        self.noChunksBox = QSpinBox(self)
+        self.noChunksBox.setMinimum(1)
+        self.noChunksBox.setStyleSheet(f"""font-size:14px; 
+                                padding: 5px 15px; 
+                                background: {COLOR4};
+                                color: {COLOR1};""")
+        noChunksLayout.addWidget(noChunksLabel,1)
+        noChunksLayout.addWidget(self.noChunksBox,5)
+
+        # Polynomial Degree Text Box
+        degreeLayout = QVBoxLayout()
+        degreeLabel = QLabel("Polynomial Degree")
+        self.degreeBox = QSpinBox(self)
+        self.degreeBox.setMinimum(0)
+        self.degreeBox.setMaximum(8)
+        self.degreeBox.setStyleSheet(f"""font-size:14px; 
+                            padding: 5px 15px; 
+                            background: {COLOR4};
+                            color: {COLOR1};""")
+        degreeLayout.addWidget(degreeLabel,1)
+        degreeLayout.addWidget(self.degreeBox,5)
+
+        # Overlap Text Box
+        overlapLayout = QVBoxLayout()
+        overlapLabel = QLabel("Overlap %")
+        
+        overlapBoxLayout = QHBoxLayout()
+        self.overlapBox = QSpinBox(self)
+        self.overlapBox.setMinimum(0)
+        self.overlapBox.setMaximum(25)
+        self.overlapBox.setStyleSheet(f"""font-size:14px; 
+                            padding: 5px 15px; 
+                            background: {COLOR4};
+                            color: {COLOR1};""")
+        overlapBoxLayout.addWidget(self.overlapBox, 20)
+        overlapBoxLayout.addWidget(QLabel("%"), 1)
+        
+        overlapLayout.addWidget(overlapLabel,1)
+        overlapLayout.addLayout(overlapBoxLayout,5)
+
+        # Overlap Text Box
+        precentageLayout = QVBoxLayout()
+        precentageLabel = QLabel("Efficiency %")
+        
+        sliderLayout = QHBoxLayout()
+        self.precentageSlider = QSlider(Qt.Horizontal)
+        self.precentageSlider.setMinimum(1)
+        self.precentageSlider.setMaximum(100)
+        self.precentageSlider.setValue(100)
+        
+        self.precentageCount = QLabel("100%")
+        sliderLayout.addWidget(self.precentageSlider,10)
+        sliderLayout.addWidget(self.precentageCount,1)
+
+        precentageLayout.addWidget(precentageLabel,1)
+        precentageLayout.addLayout(sliderLayout,5)
+        
+        polyLayout.addLayout(noChunksLayout)
+        polyLayout.addLayout(degreeLayout)
+        polyLayout.addLayout(overlapLayout)
+        polyLayout.addLayout(precentageLayout)
+
+        self.polyTab.setLayout(polyLayout)
+
+    def splineLayout(self):
+        splineLayout = QVBoxLayout()
+
+        # Num. of chunks Text Box
+        noSamplesLayout = QVBoxLayout()
+        noSamplesLabel = QLabel("Num. of samples")
+        self.noSamplesBox = QSpinBox(self)
+        self.noSamplesBox.setMinimum(1)
+        self.noSamplesBox.setStyleSheet(f"""font-size:14px; 
+                                padding: 5px 15px; 
+                                background: {COLOR4};
+                                color: {COLOR1};""")
+        noSamplesLayout.addWidget(noSamplesLabel,1)
+        noSamplesLayout.addWidget(self.noSamplesBox,5)
+
+        # Polynomial Degree Text Box
+        degreeLayout = QVBoxLayout()
+        degreeLabel = QLabel("Degree of the spline")
+        self.degreeSplineBox = QSpinBox(self)
+        self.degreeSplineBox.setMinimum(1)
+        self.degreeSplineBox.setMaximum(5)
+        self.degreeSplineBox.setStyleSheet(f"""font-size:14px; 
+                            padding: 5px 15px; 
+                            background: {COLOR4};
+                            color: {COLOR1};""")
+        degreeLayout.addWidget(degreeLabel,1)
+        degreeLayout.addWidget(self.degreeSplineBox,5)
+
+        splineLayout.addLayout(noSamplesLayout)
+        splineLayout.addLayout(degreeLayout)
+        splineLayout.addSpacerItem(QSpacerItem(10,100,QSizePolicy.Minimum, QSizePolicy.Expanding))
+
+        self.splineTab.setLayout(splineLayout)
+
+    def bicubicLayout(self):
+        bicubicLayout = QVBoxLayout()
+        
+        #bicubicLayout.addLayout()
+        #bicubicLayout.addLayout()
+
+        self.bicubicTab.setLayout(bicubicLayout)
+
     # Connect actions
     def connect(self):
         self.chunksList.currentTextChanged.connect(lambda: self.chunkLatexChange(self.chunksList.currentText()))
@@ -326,6 +397,9 @@ class Window(QMainWindow):
         self.overlapBox.valueChanged.connect(lambda: self.changeOverLap(self.overlapBox.value()))
         self.precentageSlider.valueChanged.connect(lambda: self.changePrecentage(self.precentageSlider.value()))
         self.degreeBox.valueChanged.connect(lambda: self.changeDegree(self.degreeBox.value()))
+
+        self.noSamplesBox.valueChanged.connect(lambda: self.changeNoSamples(self.noSamplesBox.value()))
+        self.degreeSplineBox.valueChanged.connect(lambda: self.changedegreeSpline(self.degreeSplineBox.value()))
 
         # Error map
         self.ButtonProgressBar.clicked.connect(lambda: self.generateErrorMap())
@@ -349,30 +423,61 @@ class Window(QMainWindow):
     def chunkLatexChange(self, i):
         # Update label
         try:
-            latexPixmap = self.latexToLabel(self.latexList[int(i)-1], 15)
+            latexPixmap = self.latexToLabel(self.latexList[int(i)-1], 13)
             # Update latex text
             self.latex.setPixmap(latexPixmap)
         except: 
             pass
     
+    def changeNoSamples(self,value):
+        self.noSamples = value-1
+        self.updateAfterEveryChangeSpline()
+    
+    def changedegreeSpline(self,value):
+        self.degreeSpline = value
+        self.updateAfterEveryChangeSpline()
+    
+    def updateAfterEveryChangeSpline(self):
+        if len(self.timePlot) > 0:
+
+            if self.noSamples>self.degreeSpline:
+                self.mainPlot.plotSignalOnly()
+                self.chunksList.clear()
+                self.chunksList.addItem("no.")
+                self.latex.clear()
+
+                x = self.timePlot[::int(len(self.mainDataPlot)/(self.noSamples))]
+                y = self.mainDataPlot[::int(len(self.mainDataPlot)/(self.noSamples))]
+                spl = splrep(x, y, k=self.degreeSpline)
+                y2 = splev(self.timePlot, spl)
+
+                precentageErrorFinal = self.MeanAbsoluteError(self.mainDataPlot, y2)
+                self.ErrorPrecent.setText("{:.3f}%".format(precentageErrorFinal))
+
+                self.mainPlot.plotSpline(x, y, self.timePlot, y2)
+            else:
+                QMessageBox.critical(self, "Error", "No. of samples > the degree of the spline fit must hold.")
+        else:
+            QMessageBox.critical(self, "Error", "You must open a signal.")
+
     def changePrecentage(self,value):
         self.precentageCount.setText(str(value)+'%')
         self.precentage = value
-        self.updateAfterEveryChange()
+        self.updateAfterEveryChangePoly()
     
     def changeOverLap(self,value):
         self.overlap = value
-        self.updateAfterEveryChange()
+        self.updateAfterEveryChangePoly()
     
     def changeDegree(self,value):
         self.degree = value
-        self.updateAfterEveryChange()
+        self.updateAfterEveryChangePoly()
 
     def changeNoChunks(self,value):
         self.noChunks = value
-        self.updateAfterEveryChange()
+        self.updateAfterEveryChangePoly()
 
-    def updateAfterEveryChange(self):
+    def updateAfterEveryChangePoly(self):
         
         if len(self.timePlot) > 0:
             # Calc. precentage of data
@@ -384,7 +489,7 @@ class Window(QMainWindow):
 
             # Clear Chunks
             # self.mainPlot.set_data(yMainDataPlot, xTimePlot)
-            self.mainPlot.clearChunks()
+            self.mainPlot.plotSignalOnly()
             self.chunksList.clear()
             self.chunksList.addItem("no.")
             self.latex.clear()
@@ -467,14 +572,11 @@ class Window(QMainWindow):
                     currOverlapChunkData = chunkData[:int(overlapPeriod)]
                     overlapCount = 0
                     TimeOverLap = chunkTime[:int(overlapPeriod)]
-                    
-                    print(len(prevOverlapChunkData), len(currOverlapChunkData))
-                    
+                                        
                     if len(prevOverlapChunkData) != len(currOverlapChunkData):
                         currOverlapChunkData = np.append(currOverlapChunkData,currOverlapChunkData[-1])
-                        TimeOverLap = np.append(TimeOverLap,TimeOverLap[-1]+1)
+                        TimeOverLap = np.append(TimeOverLap,TimeOverLap[-1] + 1)
 
-                    print(len(prevOverlapChunkData), len(currOverlapChunkData))
                     
                     chunkOverlap = np.mean([prevOverlapChunkData,currOverlapChunkData], axis=0)
 
@@ -607,6 +709,7 @@ class Window(QMainWindow):
             self.mainPlot.clearSignal()
             self.mainPlot.set_data(self.mainDataPlot, self.timePlot)
             self.mainPlot.plotSignal()
+            self.noSamplesBox.setMaximum(int(len(self.mainDataPlot)/2))
         
         except:
             logging.error("Can't open a csv file")
@@ -619,15 +722,6 @@ class Window(QMainWindow):
     def xAxisChange(self, value):
         self.xErrorMap = value
         self.errorMapPlot.setAxesLabel("x", value)
-
-    def threadCancel(self):
-        if self.cancelButtonProgressBar.text() == "Cancel":
-            self.thread.quit()
-            self.thread.exit()
-            self.worker.destroyed()
-            self.worker.killTimer()
-            self.worker.disconnect()
-            return
 
     def generateErrorMap(self):
         
