@@ -2,6 +2,7 @@
 
 # AdditionsQt
 from functools import partial
+from tkinter import messagebox
 from additionsQt import *
 # Threads
 from Threads import *
@@ -167,7 +168,7 @@ class Window(QMainWindow):
         degreeLabel = QLabel("Polynomial Degree")
         self.degreeBox = QSpinBox(self)
         self.degreeBox.setMinimum(1)
-        self.degreeBox.setMaximum(5)
+        self.degreeBox.setMaximum(8)
         self.degreeBox.setStyleSheet(f"""font-size:14px; 
                             padding: 5px 15px; 
                             background: {COLOR4};
@@ -199,7 +200,7 @@ class Window(QMainWindow):
         
         sliderLayout = QHBoxLayout()
         self.precentageSlider = QSlider(Qt.Horizontal)
-        self.precentageSlider.setMinimum(0)
+        self.precentageSlider.setMinimum(1)
         self.precentageSlider.setMaximum(100)
         self.precentageSlider.setValue(100)
         
@@ -373,36 +374,41 @@ class Window(QMainWindow):
 
     def updateAfterEveryChange(self):
         
-        # Calc. precentage of data
-        change = round(self.precentage / 100 * len(self.timePlot))
+        if len(self.timePlot) > 0:
+            # Calc. precentage of data
+            change = round(self.precentage / 100 * len(self.timePlot))
 
-        # Select the precentage of the data
-        xTimePlot = self.timePlot[:change]
-        yMainDataPlot = self.mainDataPlot[:change]
+            # Select the precentage of the data
+            xTimePlot = self.timePlot[:change]
+            yMainDataPlot = self.mainDataPlot[:change]
 
-        # Clear Chunks
-        # self.mainPlot.set_data(yMainDataPlot, xTimePlot)
-        self.mainPlot.clearChunks()
-        self.chunksList.clear()
-        self.chunksList.addItem("no.")
-        self.latex.clear()
+            # Clear Chunks
+            # self.mainPlot.set_data(yMainDataPlot, xTimePlot)
+            self.mainPlot.clearChunks()
+            self.chunksList.clear()
+            self.chunksList.addItem("no.")
+            self.latex.clear()
 
-        if self.precentage == 100 :
-            self.noChunksBox.setDisabled(False)
-            self.extraPolyMode == False
-            precentageErrorFinal = self.calcChunks(xTimePlot,yMainDataPlot,self.noChunks,self.degree,self.overlap,True)
-        else :
-            if self.extraPolyMode == False:
-                QMessageBox.information(self , "Extrapolation" , "You are in extrapolation mode now.")
-            self.extraPolyMode = True
-            self.noChunksBox.setValue(1)
-            self.degreeBox.setMaximum(100)
-            self.noChunksBox.setDisabled(True)
-            precentageErrorFinal = self.calcChunks(xTimePlot,yMainDataPlot,self.noChunks,self.degree,self.overlap,True)
-            self.calcExtrapolation(self.timePlot[change-1:], self.mainDataPlot[change-1:], self.degree, change-1)
+            if self.precentage == 100 :
+                self.noChunksBox.setDisabled(False)
+                self.extraPolyMode == False
+                self.degreeBox.setMaximum(8)
+                precentageErrorFinal = self.calcChunks(xTimePlot,yMainDataPlot,self.noChunks,self.degree,self.overlap,True)
+            else :
+                if self.extraPolyMode == False:
+                    QMessageBox.information(self , "Extrapolation" , "You are in extrapolation mode now.")
+                
+                self.extraPolyMode = True
+                self.noChunksBox.setValue(1)
+                self.degreeBox.setMaximum(100)
+                self.noChunksBox.setDisabled(True)
+                precentageErrorFinal = self.calcChunks(xTimePlot,yMainDataPlot,self.noChunks,self.degree,self.overlap,True)
+                self.calcExtrapolation(self.timePlot[change-1:], self.mainDataPlot[change-1:], self.degree, change-1)
 
-        # Calculate the precentage error
-        self.ErrorPrecent.setText("{:.3f}%".format(precentageErrorFinal))
+            # Calculate the precentage error
+            self.ErrorPrecent.setText("{:.3f}%".format(precentageErrorFinal))
+        else:
+            QMessageBox.critical(self, "Error", "You must open a signal.")
 
     def calcChunks(self, xTimePlot, yMainDataPlot, noChunks, degree, overlap, status):
         # Calc. the period of each chunk
@@ -586,8 +592,17 @@ class Window(QMainWindow):
                 # return
                     
             if fileExtension == "csv(*.csv)":
-                self.mainDataPlot = pd.read_csv(path).iloc[:,1].values.tolist()
-                self.timePlot = pd.read_csv(path).iloc[:,0].values.tolist()
+
+                if (len(pd.read_csv(path).iloc[:,1].values.tolist()) <= 500):
+                    QMessageBox.critical(self, "Error", "You must choose a signal with a reasonable length near of 1000 points.")
+                    return
+
+                if (len(self.timePlot) > 5000 and len(self.timePlot) < 12500):
+                        self.mainDataPlot = pd.read_csv(path).iloc[::10,1].values.tolist()
+                        self.timePlot = pd.read_csv(path).iloc[::10,0].values.tolist()
+                else:
+                    self.mainDataPlot = pd.read_csv(path).iloc[:,1].values.tolist()
+                    self.timePlot = pd.read_csv(path).iloc[:,0].values.tolist()
             
             self.mainPlot.clearSignal()
             self.mainPlot.set_data(self.mainDataPlot, self.timePlot)
@@ -615,57 +630,60 @@ class Window(QMainWindow):
             return
 
     def generateErrorMap(self):
-
-        # Step 2: Create a QThread object
-        self.thread = QThread()
-        # Step 3: Create a worker object
-        self.worker = ErrorMapWorker()
-
-        if self.yErrorMap == self.xErrorMap:
-            logging.error('The user chose the same for the x and y Axis') 
-            QMessageBox.warning(self , "Error" , "Choose different axis for x and y.")
-            return
         
-        if self.yErrorMap == "":
-            logging.error('Not chosen y axis') 
-            QMessageBox.warning(self , "Error" , "Choose the y axis!")
-            return
-        
-        if self.xErrorMap == "":
-            logging.error('Not chosen x axis') 
-            QMessageBox.warning(self , "Error" , "Choose the x axis!")
-            return
+        if(len(self.timePlot) > 10):
+            # Step 2: Create a QThread object
+            self.thread = QThread()
+            # Step 3: Create a worker object
+            self.worker = ErrorMapWorker()
 
-        # Step 4: Move worker to the thread
-        self.worker.moveToThread(self.thread)
+            if self.yErrorMap == self.xErrorMap:
+                logging.error('The user chose the same for the x and y Axis') 
+                QMessageBox.critical(self , "Error" , "Choose different axis for x and y.")
+                return
+            
+            if self.yErrorMap == "":
+                logging.error('Not chosen y axis') 
+                QMessageBox.critical(self , "Error" , "Choose the y axis!")
+                return
+            
+            if self.xErrorMap == "":
+                logging.error('Not chosen x axis') 
+                QMessageBox.critical(self , "Error" , "Choose the x axis!")
+                return
 
-        # Step 5: Connect signals and slots
-        self.thread.started.connect(partial(self.worker.run,self.timePlot, self.mainDataPlot, self.xErrorMap, self.yErrorMap))
-        self.worker.finished.connect(self.thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.worker.progress.connect(self.reportProgress)
-        # Step 6: Start the thread
-        self.thread.start()
+            # Step 4: Move worker to the thread
+            self.worker.moveToThread(self.thread)
 
-        # Final resets
-        self.ButtonProgressBar.hide()
-        self.cancelButtonProgressBar.show()
+            # Step 5: Connect signals and slots
+            self.thread.started.connect(partial(self.worker.run,self.timePlot, self.mainDataPlot, self.xErrorMap, self.yErrorMap))
+            self.worker.finished.connect(self.thread.quit)
+            self.worker.finished.connect(self.worker.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
+            self.worker.progress.connect(self.reportProgress)
+            # Step 6: Start the thread
+            self.thread.start()
 
-        self.worker.errorsData.connect(self.errorMapPlot.set_data_channel)
-        self.thread.finished.connect(
-            lambda: self.ButtonProgressBar.show()
-        )
-        self.thread.finished.connect(
-            lambda: self.cancelButtonProgressBar.hide()
-        )
-        self.thread.finished.connect(
-            lambda: self.errorMapPlot.plotErrorMap()
-        )
-        self.thread.finished.connect(
-            lambda: self.progressbar.setValue(0)
-        )
-        
+            # Final resets
+            self.ButtonProgressBar.hide()
+            self.cancelButtonProgressBar.show()
+
+            self.worker.errorsData.connect(self.errorMapPlot.set_data_channel)
+            self.thread.finished.connect(
+                lambda: self.ButtonProgressBar.show()
+            )
+            self.thread.finished.connect(
+                lambda: self.cancelButtonProgressBar.hide()
+            )
+            self.thread.finished.connect(
+                lambda: self.errorMapPlot.plotErrorMap()
+            )
+            self.thread.finished.connect(
+                lambda: self.progressbar.setValue(0)
+            )
+        else:
+            QMessageBox.critical(self, "Error", "You must open a signal.")
+
     def reportProgress(self, n):
         self.progressbar.setValue(n)
     
