@@ -28,7 +28,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr
-from scipy.interpolate import splev, splrep
+from scipy.interpolate import splev, splrep, interp1d
 
 
 # importing pyqtgraph as pg
@@ -169,9 +169,9 @@ class Window(QMainWindow):
         self.splineLayout()
         tabs.addTab(self.splineTab, "Spline")
 
-        self.bicubicTab = QWidget()
-        self.bicubicLayout()
-        tabs.addTab(self.bicubicTab, "Bicubic")
+        self.nearestTab = QWidget()
+        self.nearestLayout()
+        tabs.addTab(self.nearestTab, "Nearest")
 
         mainPanel.addWidget(tabs)
 
@@ -381,13 +381,25 @@ class Window(QMainWindow):
 
         self.splineTab.setLayout(splineLayout)
 
-    def bicubicLayout(self):
-        bicubicLayout = QVBoxLayout()
+    def nearestLayout(self):
+        nearestLayout = QVBoxLayout()
         
-        #bicubicLayout.addLayout()
-        #bicubicLayout.addLayout()
+        # Num. of chunks Text Box
+        noSamplesNearestLayout = QVBoxLayout()
+        noSamplesNearestLabel = QLabel("Num. of samples")
+        self.noSamplesNearestBox = QSpinBox(self)
+        self.noSamplesNearestBox.setMinimum(2)
+        self.noSamplesNearestBox.setStyleSheet(f"""font-size:14px; 
+                                padding: 5px 15px; 
+                                background: {COLOR4};
+                                color: {COLOR1};""")
+        noSamplesNearestLayout.addWidget(noSamplesNearestLabel,1)
+        noSamplesNearestLayout.addWidget(self.noSamplesNearestBox,5)
+        
+        nearestLayout.addLayout(noSamplesNearestLayout)
+        nearestLayout.addSpacerItem(QSpacerItem(10,200,QSizePolicy.Minimum, QSizePolicy.Expanding))
 
-        self.bicubicTab.setLayout(bicubicLayout)
+        self.nearestTab.setLayout(nearestLayout)
 
     # Connect actions
     def connect(self):
@@ -399,7 +411,9 @@ class Window(QMainWindow):
         self.degreeBox.valueChanged.connect(lambda: self.changeDegree(self.degreeBox.value()))
 
         self.noSamplesBox.valueChanged.connect(lambda: self.changeNoSamples(self.noSamplesBox.value()))
-        self.degreeSplineBox.valueChanged.connect(lambda: self.changedegreeSpline(self.degreeSplineBox.value()))
+        self.degreeSplineBox.valueChanged.connect(lambda: self.changeDegreeSpline(self.degreeSplineBox.value()))
+
+        self.noSamplesNearestBox.valueChanged.connect(lambda: self.changeNoSamplesNearest(self.noSamplesNearestBox.value()))
 
         # Error map
         self.ButtonProgressBar.clicked.connect(lambda: self.generateErrorMap())
@@ -419,7 +433,7 @@ class Window(QMainWindow):
         self.statusBar.showMessage("Spectrogram platte color is changed to " + color + ".")
         self.errorMapPlot.set_color(color)
         self.errorMapPlot.updateColorBar()
-
+    
     def chunkLatexChange(self, i):
         # Update label
         try:
@@ -429,17 +443,49 @@ class Window(QMainWindow):
         except: 
             pass
     
+    # Nearest
+    def changeNoSamplesNearest(self,value):
+        self.noSamplesNearest = value - 1
+        self.updateAfterEveryChangeNearest()
+ 
+    def updateAfterEveryChangeNearest(self):
+        
+        if len(self.timePlot) > 0:     
+
+            if self.noSamplesNearest >= 2:
+                self.mainPlot.plotSignalOnly()
+                self.chunksList.clear()
+                self.chunksList.addItem("no.")
+                self.latex.clear()
+
+                xi = self.timePlot[::int(len(self.mainDataPlot)/(self.noSamplesNearest))]
+                yi = self.mainDataPlot[::int(len(self.mainDataPlot)/(self.noSamplesNearest))]
+
+                interp = interp1d(xi, yi, kind="nearest", fill_value="extrapolate")
+                y_nearest = interp(self.timePlot)
+
+                self.mainPlot.plotSpline(xi, yi, self.timePlot, y_nearest)
+
+                precentageErrorFinal = self.meanAbsoluteError(self.mainDataPlot, y_nearest)
+                self.ErrorPrecent.setText("{:.3f}%".format(precentageErrorFinal))
+
+            else:
+                QMessageBox.critical(self, "Error", "Choose No. of samples bigger than 2.")
+
+        else:
+            QMessageBox.critical(self, "Error", "You must open a signal.")
+
+    # Spline
     def changeNoSamples(self,value):
         self.noSamples = value-1
         self.updateAfterEveryChangeSpline()
     
-    def changedegreeSpline(self,value):
+    def changeDegreeSpline(self,value):
         self.degreeSpline = value
         self.updateAfterEveryChangeSpline()
     
     def updateAfterEveryChangeSpline(self):
         if len(self.timePlot) > 0:
-
             if self.noSamples>self.degreeSpline:
                 self.mainPlot.plotSignalOnly()
                 self.chunksList.clear()
@@ -451,7 +497,7 @@ class Window(QMainWindow):
                 spl = splrep(x, y, k=self.degreeSpline)
                 y2 = splev(self.timePlot, spl)
 
-                precentageErrorFinal = self.MeanAbsoluteError(self.mainDataPlot, y2)
+                precentageErrorFinal = self.meanAbsoluteError(self.mainDataPlot, y2)
                 self.ErrorPrecent.setText("{:.3f}%".format(precentageErrorFinal))
 
                 self.mainPlot.plotSpline(x, y, self.timePlot, y2)
@@ -460,6 +506,7 @@ class Window(QMainWindow):
         else:
             QMessageBox.critical(self, "Error", "You must open a signal.")
 
+    # Polynomial
     def changePrecentage(self,value):
         self.precentageCount.setText(str(value)+'%')
         self.precentage = value
@@ -590,9 +637,7 @@ class Window(QMainWindow):
                     overlapPeriod = int(overlapPeriod)
                     self.mainPlot.plotChunks(chunkTime[overlapPeriod:-overlapPeriod], chunkData[overlapPeriod:-overlapPeriod])
 
-            chunkError = self.MeanAbsoluteError(yMainDataPlot[start:end],chunkData)
-            # defaultError = self.MeanAbsoluteError(yMainDataPlot[start:end],np.zeros(int(end-start)))
-            # chunkError = (chunkError/defaultError) * 100
+            chunkError = self.meanAbsoluteError(yMainDataPlot[start:end],chunkData)
             precentageError.append(chunkError)
 
 
@@ -619,7 +664,7 @@ class Window(QMainWindow):
 
         return
 
-    def MeanAbsoluteError(self, y_true, y_chunk):
+    def meanAbsoluteError(self, y_true, y_chunk):
             y_true, y_chunk = np.array(y_true), np.array(y_chunk)
             corr, _ = pearsonr(y_true, y_chunk)
             return (1-corr)*100
