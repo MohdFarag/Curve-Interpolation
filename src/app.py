@@ -432,7 +432,6 @@ class Window(QMainWindow):
     def colorErrorMapChange(self, color):
         self.statusBar.showMessage("Spectrogram platte color is changed to " + color + ".")
         self.errorMapPlot.set_color(color)
-        self.errorMapPlot.updateColorBar()
     
     def chunkLatexChange(self, i):
         # Update label
@@ -448,8 +447,7 @@ class Window(QMainWindow):
         self.noSamplesNearest = value - 1
         self.updateAfterEveryChangeNearest()
  
-    def updateAfterEveryChangeNearest(self):
-        
+    def updateAfterEveryChangeNearest(self):     
         if len(self.timePlot) > 0:     
 
             if self.noSamplesNearest >= 2:
@@ -817,6 +815,7 @@ class Window(QMainWindow):
             self.thread.finished.connect(
                 lambda: self.errorMapPlot.plotErrorMap()
             )
+
             self.thread.finished.connect(
                 lambda: self.progressbar.setValue(0)
             )

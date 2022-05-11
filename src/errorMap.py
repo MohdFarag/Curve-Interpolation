@@ -37,6 +37,7 @@ class MplCanvasErrorMap(FigureCanvasQTAgg):
         sm = plt.cm.ScalarMappable(cmap=colormap)
         self.colorBarSpectrogram = self.fig.colorbar(sm)
 
+        self.dataMeas = np.array([])
         super(MplCanvasErrorMap, self).__init__(self.fig)
 
     data_channel = [np.random.randint(-10,10) for i in range(500)]
@@ -77,17 +78,6 @@ class MplCanvasErrorMap(FigureCanvasQTAgg):
         self.fig.set_facecolor(figColor)
         # Change color of axes
         self.axes.set_facecolor(axesColor)
-
-    def addColorBar(self):
-        colormap = plt.cm.get_cmap(self.colorPalette)
-        sm = plt.cm.ScalarMappable(cmap=colormap)
-        self.colorBarSpectrogram = self.fig.colorbar(sm)
-        self.colorBarSpectrogram.solids.set_edgecolor("face")
-
-    def updateColorBar(self):
-        colormap = plt.cm.get_cmap(self.colorPalette)
-        sm = plt.cm.ScalarMappable(cmap=colormap)
-        self.colorBarSpectrogram.update_normal(sm)
     
     def set_color(self, colorPalette):
         self.colorPalette = colorPalette
@@ -119,8 +109,9 @@ class MplCanvasErrorMap(FigureCanvasQTAgg):
         self.data_channel = np.array(self.data_channel)
 
         if self.data_channel.ndim > 1 :
-            self.axes.imshow(self.data_channel, interpolation="sinc", resample=True, cmap=self.colorPalette, vmin=0, vmax=100, extent=[0,1,0,1])
-            self.draw()  
+            self.dataMeas = self.axes.imshow(self.data_channel, interpolation="sinc", resample=True, cmap=self.colorPalette, vmin=0, vmax=100, extent=[0,1,0,1])
+            self.colorBarSpectrogram.update_normal(self.dataMeas)
+            self.draw() 
         else :
             logging.error("Can't generate image plot because array is 2D.") 
         
