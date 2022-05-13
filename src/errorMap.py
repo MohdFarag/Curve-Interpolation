@@ -107,9 +107,12 @@ class MplCanvasErrorMap(FigureCanvasQTAgg):
 
     def plotErrorMap(self):
         self.data_channel = np.array(self.data_channel)
-
+        print(self.data_channel.shape)
         if self.data_channel.ndim > 1 :
-            self.dataMeas = self.axes.imshow(self.data_channel, interpolation="sinc", resample=True, cmap=self.colorPalette, vmin=0, vmax=100, extent=[0,1,0,1])
+            self.dataMeas = self.axes.imshow(self.data_channel, interpolation="none", resample=True, cmap=self.colorPalette, vmin=0, vmax=100, extent=[0, self.data_channel.shape[1], 0, self.data_channel.shape[0]])
+            
+            self.axes.set_aspect(self.data_channel.shape[1]/(self.data_channel.shape[0]*2))
+
             self.colorBarSpectrogram.update_normal(self.dataMeas)
             self.draw() 
         else :

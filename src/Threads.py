@@ -32,15 +32,19 @@ class ErrorMapWorker(QObject):
         yRange = self.getRanges(yErrorMap,timePlot)
 
         i = 1
-        errorsData = np.zeros((yRange,xRange))
+        errorsData = list()
         for y in range(1,yRange):
+            tempErrors = np.array([])
             for x in range(1,xRange):
-                if self._isRunning :                
-                    errorsData[y][x] = self.chosenAxis(timePlot, mainDataPlot, xErrorMap, yErrorMap, x, y)
-
+                if self._isRunning :             
+                    errorData = self.chosenAxis(timePlot, mainDataPlot, xErrorMap, yErrorMap, x, y)
+                    tempErrors = np.append(tempErrors, errorData)
+                    # Return progress bar
                     self.progress.emit(int(i/((xRange-1)*(yRange-1))*100))
                     i += 1
+            errorsData.append(tempErrors)
 
+        errorsData = np.array(errorsData)
         if self._isRunning :
             self.errorsData.emit(errorsData[::-1])
         

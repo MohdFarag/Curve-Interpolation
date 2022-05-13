@@ -68,7 +68,7 @@ class Window(QMainWindow):
         self.overlap = 0
         self.precentage = 100
         self.noChunks = 1
-        self.degree = 1
+        self.degree = 0
         self.latexList = list()
 
         # extrapolation variables
