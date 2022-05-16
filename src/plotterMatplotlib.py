@@ -1,11 +1,7 @@
 # importing Qt widgets
-from turtle import color
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-
-from scipy import signal
-from scipy.special import sinc
 
 
 # Definition of Main Color Palette

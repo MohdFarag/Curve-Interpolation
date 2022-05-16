@@ -1,11 +1,10 @@
-import os
-from time import sleep
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr # Correlation 
 import warnings
-
-from PyQt5.QtCore import QObject, QThread, pyqtSignal
-import numpy as np
 warnings.simplefilter('ignore', np.RankWarning)
+
+from PyQt5.QtCore import QObject, pyqtSignal
+import numpy as np
+
 # Logging configuration
 import logging
 logging.basicConfig(filename="errlog.log",

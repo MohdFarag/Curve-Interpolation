@@ -1,9 +1,7 @@
 # !/usr/bin/python
 
 import sys
-import os
 from app import *
-from setColorWindow import *
 
 StyleSheet = '''
 #RedProgressBar {
@@ -40,7 +38,6 @@ if __name__ == "__main__":
     app.setStyle('Fusion')
     app.setStyleSheet(StyleSheet)
 
-    # popWin = popWindow("Dark or Light or Orange ?", ["Light", "Orange", "Dark"])
     popWin = Window()
     popWin.show()
 

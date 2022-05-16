@@ -2,12 +2,10 @@ import sys
 import os
 
 # matplotlib
-import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_agg import FigureCanvas
 import numpy as np
 
 from PyQt5.QtWidgets import *
@@ -16,8 +14,6 @@ from PyQt5.QtCore import *
 
 # Logging configuration
 import logging
-
-from sympy import false
 logging.basicConfig(filename="errlog.log",
                     filemode="a",
                     format="(%(asctime)s)  | %(name)s | %(levelname)s:%(message)s",
