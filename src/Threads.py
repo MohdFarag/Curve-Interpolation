@@ -1,9 +1,11 @@
+# importing Qt widgets
+from PyQt5.QtCore import QObject, pyqtSignal
+
 from scipy.stats import pearsonr # Correlation 
+import numpy as np
+
 import warnings
 warnings.simplefilter('ignore', np.RankWarning)
-
-from PyQt5.QtCore import QObject, pyqtSignal
-import numpy as np
 
 # Logging configuration
 import logging
