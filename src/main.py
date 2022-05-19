@@ -2,6 +2,8 @@
 
 import sys
 from app import *
+import warnings
+warnings.filterwarnings("ignore")
 
 StyleSheet = '''
 #RedProgressBar {

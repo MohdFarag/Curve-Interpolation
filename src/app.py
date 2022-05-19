@@ -541,7 +541,7 @@ class Window(QMainWindow):
                 self.noChunksBox.setDisabled(False)
                 self.extraPolyMode == False
                 self.degreeBox.setMaximum(8)
-                precentageErrorFinal = self.calcChunks(xTimePlot,yMainDataPlot,self.noChunks,self.degree,self.overlap,True)
+                precentageErrorFinal = self.calcChunks(xTimePlot,yMainDataPlot,self.noChunks,self.degree,self.overlap)
             else :
                 if self.extraPolyMode == False:
                     QMessageBox.information(self , "Extrapolation" , "You are in extrapolation mode now.")
@@ -550,7 +550,7 @@ class Window(QMainWindow):
                 self.noChunksBox.setValue(1)
                 self.degreeBox.setMaximum(100)
                 self.noChunksBox.setDisabled(True)
-                precentageErrorFinal = self.calcChunks(xTimePlot,yMainDataPlot,self.noChunks,self.degree,self.overlap,True)
+                precentageErrorFinal = self.calcChunks(xTimePlot,yMainDataPlot,self.noChunks,self.degree,self.overlap)
                 self.calcExtrapolation(self.timePlot[change-1:], self.mainDataPlot[change-1:], self.degree, change-1)
 
             # Calculate the precentage error
@@ -558,7 +558,7 @@ class Window(QMainWindow):
         else:
             QMessageBox.critical(self, "Error", "You must open a signal.")
 
-    def calcChunks(self, xTimePlot, yMainDataPlot, noChunks, degree, overlap, status):
+    def calcChunks(self, xTimePlot, yMainDataPlot, noChunks, degree, overlap):
         # Calc. the period of each chunk
         period = len(xTimePlot) / noChunks
         # Calc. the overlap period
@@ -566,18 +566,17 @@ class Window(QMainWindow):
         
         prevOverlapChunkData = list()
         currOverlapChunkData = list()
+        
         self.latexList = list()
         precentageError = list()
-        TimeOverLap = list()
         start, end = 0, 0
         i = 0 # iteration
         n = 1
-        overlapCount = 0
         while i+period-overlapPeriod <= len(xTimePlot):
             # Calculate the start and end of each chunk
             if i != 0:
                 start = int(i-overlapPeriod)
-                end = int(i-overlapPeriod+period)
+                end = int(i-(overlapPeriod)+period)
                 i += period-overlapPeriod
             else:
                 start = int(i)
@@ -595,51 +594,47 @@ class Window(QMainWindow):
             chunkCoeff = np.polyfit(xTimePlot[start:end], yMainDataPlot[start:end], degree)
             latexChunk = np.poly1d(chunkCoeff)
 
-            if status == True:
-                # Convert from poly to latex in string form
-                latexString = self.generateLatexString(latexChunk)
-                self.latexList.append(latexString)
-                self.chunksList.addItem(str(n))
-                n+=1
+            # Convert from poly to latex in string form
+            latexString = self.generateLatexString(latexChunk)
+            self.latexList.append(latexString)
+            self.chunksList.addItem(str(n))
 
             # Calc. the curve from equation of latex
             chunkData = np.zeros(int(end-start)) # Initilize the chunkData
             for j in range(int(end-start)):
                 chunkData[j] = latexChunk(chunkTime[j])
-            
-            if overlap != 0:
-                if overlapCount == 0:
-                    prevOverlapChunkData = chunkData[startOverlap:endoverlap]
-                    overlapCount = 1
+
+            if overlap != 0 :
+                if n == 1:
+                    prevOverlapChunkData = chunkData[startOverlap:endoverlap] # Get last overlap period
                 else:
-                    currOverlapChunkData = chunkData[:int(overlapPeriod)]
-                    overlapCount = 0
-                    TimeOverLap = chunkTime[:int(overlapPeriod)]
+                    currOverlapChunkData = chunkData[:int(overlapPeriod)] # Get first overlap period
                                         
                     if len(prevOverlapChunkData) != len(currOverlapChunkData):
                         currOverlapChunkData = np.append(currOverlapChunkData,currOverlapChunkData[-1])
-                        TimeOverLap = np.append(TimeOverLap,TimeOverLap[-1] + 1)
-
                     
+                    prevOverlapChunkData = chunkData[startOverlap:endoverlap] # Get last overlap period
                     chunkOverlap = np.mean([prevOverlapChunkData,currOverlapChunkData], axis=0)
+                    
+                    try:
+                        chunkData[:int(overlapPeriod)] = chunkOverlap
+                    except:
+                        chunkData[:int(overlapPeriod)] = chunkOverlap[:-1]
 
-                    if status == True:
-                        self.mainPlot.plotChunks(TimeOverLap, chunkOverlap)
+                if end != len(xTimePlot):
+                    chunkData = chunkData[:-int(overlapPeriod)]
+                    chunkTime = chunkTime[:-int(overlapPeriod)]
 
-            if status == True:
-                if overlap == 0:
-                    self.mainPlot.plotChunks(chunkTime, chunkData)
-                else:
-                    overlapPeriod = int(overlapPeriod)
-                    self.mainPlot.plotChunks(chunkTime[overlapPeriod:-overlapPeriod], chunkData[overlapPeriod:-overlapPeriod])
+            self.mainPlot.plotChunks(chunkTime, chunkData)
 
-            chunkError = self.meanAbsoluteError(yMainDataPlot[start:end],chunkData)
+            if end != len(xTimePlot):
+                chunkError = self.meanAbsoluteError(yMainDataPlot[start:end-int(overlapPeriod)],chunkData)
+
             precentageError.append(chunkError)
-
+            n+=1
 
         # Calculate the precentage error
         precentageErrorFinal = np.mean(precentageError)
-
         return precentageErrorFinal
 
     def calcExtrapolation(self, xTimePlot, yMainDataPlot, degree, change):

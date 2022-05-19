@@ -66,11 +66,11 @@ class ErrorMapWorker(QObject):
     def chosenAxis(self, timePlot, mainDataPlot, xErrorMap, yErrorMap, x, y):
         errorData = 0
         if xErrorMap == "Overlap" and yErrorMap == "Degree":
-            errorData = self.calcChunks(timePlot, mainDataPlot, 1, y, x)
+            errorData = self.calcChunks(timePlot, mainDataPlot, 5, y, x)
         elif xErrorMap == "Overlap" and yErrorMap == "No. of Chunks":
             errorData = self.calcChunks(timePlot, mainDataPlot, y, 1, x)
         elif xErrorMap == "Degree" and yErrorMap == "Overlap":
-            errorData = self.calcChunks(timePlot, mainDataPlot, 1, x, y)
+            errorData = self.calcChunks(timePlot, mainDataPlot, 5, x, y)
         elif xErrorMap == "Degree" and yErrorMap == "No. of Chunks":
             errorData = self.calcChunks(timePlot, mainDataPlot, y, x, 0)
         elif xErrorMap == "No. of Chunks" and yErrorMap == "Degree":
@@ -80,26 +80,32 @@ class ErrorMapWorker(QObject):
         
         return errorData
 
-    def calcChunks(self, xTimePlot, yMainDataPlot, noChunks, degree, overlap):
-        
+    def calcChunks(self, xTimePlot, yMainDataPlot, noChunks, degree, overlap):      
         # Calc. the period of each chunk
         period = len(xTimePlot) / noChunks
         # Calc. the overlap period
         overlapPeriod = overlap/100 * period
-        
+
+        prevOverlapChunkData = list()
+        currOverlapChunkData = list()
+        chunkError = list()
+
         precentageError = list()
         start, end = 0, 0
         i = 0 # iteration
+        n = 1
         while i+period-overlapPeriod <= len(xTimePlot):
             # Calculate the start and end of each chunk
             if i != 0:
                 start = int(i-overlapPeriod)
-                end = int(i-overlapPeriod+period)
+                end = int(i-(overlapPeriod)+period)
                 i += period-overlapPeriod
             else:
                 start = int(i)
                 end = int(i+period)
                 i+=period
+                startOverlap = int(i-overlapPeriod)
+                endoverlap = int(i)
             
             if i+period-overlapPeriod > len(xTimePlot):
                 end = len(xTimePlot)
@@ -115,18 +121,44 @@ class ErrorMapWorker(QObject):
             for j in range(int(end-start)):
                 chunkData[j] = latexChunk(chunkTime[j])
 
-            chunkError = self.MeanAbsoluteError(yMainDataPlot[start:end],chunkData)
-            precentageError.append(chunkError)
+            if overlap != 0 :
+                if n == 1:
+                    prevOverlapChunkData = chunkData[startOverlap:endoverlap] # Get last overlap period
+                else:
+                    currOverlapChunkData = chunkData[:int(overlapPeriod)] # Get first overlap period
+                                        
+                    if len(prevOverlapChunkData) != len(currOverlapChunkData):
+                        currOverlapChunkData = np.append(currOverlapChunkData,currOverlapChunkData[-1])
+                    
+                    prevOverlapChunkData = chunkData[startOverlap:endoverlap] # Get last overlap period
+                    chunkOverlap = np.mean([prevOverlapChunkData,currOverlapChunkData], axis=0)
+                    
+                    try:
+                        chunkData[:int(overlapPeriod)] = chunkOverlap
+                    except:
+                        chunkData[:int(overlapPeriod)] = chunkOverlap[:-1]
 
+                if end != len(xTimePlot):
+                    chunkData = chunkData[:-int(overlapPeriod)]
+                    chunkTime = chunkTime[:-int(overlapPeriod)]
+
+            if end != len(xTimePlot):
+                chunkError = self.meanAbsoluteError(yMainDataPlot[start:end-int(overlapPeriod)],chunkData)
+            
+            precentageError.append(chunkError)
+            n+=1
+        
         # Calculate the precentage error
         precentageErrorFinal = np.mean(precentageError)
-
         return precentageErrorFinal
 
-    def MeanAbsoluteError(self, y_true, y_chunk):
-            y_true, y_chunk = np.array(y_true), np.array(y_chunk)
-            corr, _ = pearsonr(y_true, y_chunk)
-            return (1-corr)*100
+    def meanAbsoluteError(self, y_true, y_chunk):
+        print("=-------------------------")
+        print(len(y_true), len(y_chunk))
+        print("=-------------------------")
+        y_true, y_chunk = np.array(y_true), np.array(y_chunk)
+        corr, _ = pearsonr(y_true, y_chunk)
+        return (1-corr)*100
 
 
     def stop(self):
