@@ -103,7 +103,6 @@ class MplCanvasErrorMap(FigureCanvasQTAgg):
 
     def plotErrorMap(self):
         self.data_channel = np.array(self.data_channel)
-        print(self.data_channel.shape)
         if self.data_channel.ndim > 1 :
             self.dataMeas = self.axes.imshow(self.data_channel, interpolation="none", resample=True, cmap=self.colorPalette, vmin=0, vmax=100, extent=[0, self.data_channel.shape[1], 0, self.data_channel.shape[0]])
             

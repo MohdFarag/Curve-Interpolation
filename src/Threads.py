@@ -55,11 +55,11 @@ class ErrorMapWorker(QObject):
         axisRange = 0
 
         if axisErrorMap == "Overlap":
-            axisRange = 25
+            axisRange = 10
         elif axisErrorMap == "Degree":
             axisRange = 5
         elif axisErrorMap == "No. of Chunks":
-            axisRange = int(len(timePlot)/20)
+            axisRange = int(len(timePlot)/10)
         
         return axisRange
 
@@ -121,29 +121,29 @@ class ErrorMapWorker(QObject):
             for j in range(int(end-start)):
                 chunkData[j] = latexChunk(chunkTime[j])
 
-            if overlap != 0 :
-                if n == 1:
-                    prevOverlapChunkData = chunkData[startOverlap:endoverlap] # Get last overlap period
-                else:
-                    currOverlapChunkData = chunkData[:int(overlapPeriod)] # Get first overlap period
+            # if overlap != 0 :
+            #     if n == 1:
+            #         prevOverlapChunkData = chunkData[startOverlap:endoverlap] # Get last overlap period
+            #     else:
+            #         currOverlapChunkData = chunkData[:int(overlapPeriod)] # Get first overlap period
                                         
-                    if len(prevOverlapChunkData) != len(currOverlapChunkData):
-                        currOverlapChunkData = np.append(currOverlapChunkData,currOverlapChunkData[-1])
+            #         if len(prevOverlapChunkData) != len(currOverlapChunkData):
+            #             currOverlapChunkData = np.append(currOverlapChunkData,currOverlapChunkData[-1])
                     
-                    prevOverlapChunkData = chunkData[startOverlap:endoverlap] # Get last overlap period
-                    chunkOverlap = np.mean([prevOverlapChunkData,currOverlapChunkData], axis=0)
+            #         prevOverlapChunkData = chunkData[startOverlap:endoverlap] # Get last overlap period
+            #         chunkOverlap = np.mean([prevOverlapChunkData,currOverlapChunkData], axis=0)
                     
-                    try:
-                        chunkData[:int(overlapPeriod)] = chunkOverlap
-                    except:
-                        chunkData[:int(overlapPeriod)] = chunkOverlap[:-1]
+            #         try:
+            #             chunkData[:int(overlapPeriod)] = chunkOverlap
+            #         except:
+            #             chunkData[:int(overlapPeriod)] = chunkOverlap[:-1]
 
-                if end != len(xTimePlot):
-                    chunkData = chunkData[:-int(overlapPeriod)]
-                    chunkTime = chunkTime[:-int(overlapPeriod)]
+            #     if end != len(xTimePlot):
+            #         chunkData = chunkData[:-int(overlapPeriod)]
+            #         chunkTime = chunkTime[:-int(overlapPeriod)]
 
             if end != len(xTimePlot):
-                chunkError = self.meanAbsoluteError(yMainDataPlot[start:end-int(overlapPeriod)],chunkData)
+                chunkError = self.meanAbsoluteError(yMainDataPlot[start:end], chunkData)
             
             precentageError.append(chunkError)
             n+=1
@@ -153,9 +153,7 @@ class ErrorMapWorker(QObject):
         return precentageErrorFinal
 
     def meanAbsoluteError(self, y_true, y_chunk):
-        print("=-------------------------")
-        print(len(y_true), len(y_chunk))
-        print("=-------------------------")
+
         y_true, y_chunk = np.array(y_true), np.array(y_chunk)
         corr, _ = pearsonr(y_true, y_chunk)
         return (1-corr)*100
