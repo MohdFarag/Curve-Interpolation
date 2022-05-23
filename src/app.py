@@ -531,7 +531,6 @@ class Window(QMainWindow):
             yMainDataPlot = self.mainDataPlot[:change]
 
             # Clear Chunks
-            # self.mainPlot.set_data(yMainDataPlot, xTimePlot)
             self.mainPlot.plotSignalOnly()
             self.chunksList.clear()
             self.chunksList.addItem("no.")
@@ -541,6 +540,8 @@ class Window(QMainWindow):
                 self.noChunksBox.setDisabled(False)
                 self.extraPolyMode == False
                 self.degreeBox.setMaximum(8)
+
+                # TODO: prevent repeation code
                 precentageErrorFinal = self.calcChunks(xTimePlot,yMainDataPlot,self.noChunks,self.degree,self.overlap)
             else :
                 if self.extraPolyMode == False:
@@ -550,8 +551,8 @@ class Window(QMainWindow):
                 self.noChunksBox.setValue(1)
                 self.degreeBox.setMaximum(100)
                 self.noChunksBox.setDisabled(True)
-                precentageErrorFinal = self.calcChunks(xTimePlot,yMainDataPlot,self.noChunks,self.degree,self.overlap)
-                self.calcExtrapolation(self.timePlot[change-1:], self.mainDataPlot[change-1:], self.degree, change-1)
+                precentageErrorFinal = self.calcChunks(xTimePlot, yMainDataPlot, self.noChunks,self.degree,self.overlap)
+                self.calcExtrapolation(self.degree, change-1)
 
             # Calculate the precentage error
             self.ErrorPrecent.setText("{:.3f}%".format(precentageErrorFinal))
@@ -559,19 +560,22 @@ class Window(QMainWindow):
             QMessageBox.critical(self, "Error", "You must open a signal.")
 
     def calcChunks(self, xTimePlot, yMainDataPlot, noChunks, degree, overlap):
+
         # Calc. the period of each chunk
         period = len(xTimePlot) / noChunks
         # Calc. the overlap period
         overlapPeriod = overlap/100 * period
         
         prevOverlapChunkData = list()
-        currOverlapChunkData = list()
+        currOverlapChunkData = list()        
+        chunkError = list()
         
         self.latexList = list()
         precentageError = list()
         start, end = 0, 0
         i = 0 # iteration
         n = 1
+        
         while i+period-overlapPeriod <= len(xTimePlot):
             # Calculate the start and end of each chunk
             if i != 0:
@@ -637,9 +641,9 @@ class Window(QMainWindow):
         precentageErrorFinal = np.mean(precentageError)
         return precentageErrorFinal
 
-    def calcExtrapolation(self, xTimePlot, yMainDataPlot, degree, change):
+    def calcExtrapolation(self, degree, change):
         # Chunk Time
-        chunkTime = self.timePlot[:len(self.timePlot)-change]
+        chunkTime = self.timePlot[change:]
         # Poly fit
         chunkCoeff = np.polyfit(self.timePlot[:change], self.mainDataPlot[:change], degree)
         latexChunk = np.poly1d(chunkCoeff)
@@ -649,9 +653,7 @@ class Window(QMainWindow):
         for j in range(len(chunkTime)):
             chunkData[j] = latexChunk(chunkTime[j])
 
-        chunkData = np.append(latexChunk(self.timePlot[change-1]), chunkData)
-        xTimePlot = np.append(xTimePlot, xTimePlot[-1]+1)
-        self.mainPlot.plotChunks(xTimePlot, chunkData)
+        self.mainPlot.plotChunks(chunkTime, chunkData)
 
         return
 
@@ -725,9 +727,7 @@ class Window(QMainWindow):
             path, fileExtension = QFileDialog.getOpenFileName(None, "Load Signal File", os.getenv('HOME') ,"csv(*.csv)")
 
             if path == "":
-                self.timePlot = np.linspace(-10, 10, 1000)
-                self.mainDataPlot = np.sin(self.timePlot) + np.sin(2*self.timePlot) + 5*np.sin(3*self.timePlot) + 10*np.sin(6*self.timePlot)
-                # return
+                return
                     
             if fileExtension == "csv(*.csv)":
 

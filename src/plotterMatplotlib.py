@@ -79,7 +79,7 @@ class MplCanvasPlotter(FigureCanvasQTAgg):
 
     def plotSignal(self):
         self.clearSignal()
-        self.axes.plot(self.x, self.y)
+        self.axes.plot(self.x, self.y, '#6ed1ff')
         self.draw()
 
     def plotChunks(self,x, y):
