@@ -628,7 +628,7 @@ class Window(QMainWindow):
                 if end != len(xTimePlot):
                     chunkData = chunkData[:-int(overlapPeriod)]
                     chunkTime = chunkTime[:-int(overlapPeriod)]
-
+          
             self.mainPlot.plotChunks(chunkTime, chunkData)
 
             if end != len(xTimePlot):
@@ -653,7 +653,9 @@ class Window(QMainWindow):
         for j in range(len(chunkTime)):
             chunkData[j] = latexChunk(chunkTime[j])
 
-        self.mainPlot.plotChunks(chunkTime, chunkData)
+        chunkData = np.append(latexChunk(self.timePlot[change-1]), chunkData)
+        xTimePlot = np.append(chunkTime, chunkTime[-1] + chunkTime[-2]-chunkTime[-3])
+        self.mainPlot.plotChunks(xTimePlot, chunkData)
 
         return
 
