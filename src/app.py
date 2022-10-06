@@ -2,7 +2,6 @@
 
 # AdditionsQt
 from functools import partial
-from additionsQt import *
 # Threads
 from Threads import *
 # import Classes
