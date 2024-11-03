@@ -60,7 +60,7 @@ class Window(QMainWindow):
 
         self.mainDataPlot = np.array([])
         self.timePlot = np.array([])
-        
+
         # interpolation variables
         self.overlap = 0
         self.precentage = 100
@@ -323,20 +323,20 @@ class Window(QMainWindow):
         # Overlap Text Box
         precentageLayout = QVBoxLayout()
         precentageLabel = QLabel("Efficiency %")
-        
+
         sliderLayout = QHBoxLayout()
         self.precentageSlider = QSlider(Qt.Horizontal)
         self.precentageSlider.setMinimum(1)
         self.precentageSlider.setMaximum(100)
         self.precentageSlider.setValue(100)
-        
+
         self.precentageCount = QLabel("100%")
         sliderLayout.addWidget(self.precentageSlider,10)
         sliderLayout.addWidget(self.precentageCount,1)
 
         precentageLayout.addWidget(precentageLabel,1)
         precentageLayout.addLayout(sliderLayout,5)
-        
+
         polyLayout.addLayout(noChunksLayout)
         polyLayout.addLayout(degreeLayout)
         polyLayout.addLayout(overlapLayout)
@@ -352,8 +352,8 @@ class Window(QMainWindow):
         noSamplesLabel = QLabel("Num. of samples")
         self.noSamplesBox = QSpinBox(self)
         self.noSamplesBox.setMinimum(1)
-        self.noSamplesBox.setStyleSheet(f"""font-size:14px; 
-                                padding: 5px 15px; 
+        self.noSamplesBox.setStyleSheet(f"""font-size:14px;
+                                padding: 5px 15px;
                                 background: {COLOR4};
                                 color: {COLOR1};""")
         noSamplesLayout.addWidget(noSamplesLabel,1)
@@ -365,8 +365,8 @@ class Window(QMainWindow):
         self.degreeSplineBox = QSpinBox(self)
         self.degreeSplineBox.setMinimum(1)
         self.degreeSplineBox.setMaximum(5)
-        self.degreeSplineBox.setStyleSheet(f"""font-size:14px; 
-                            padding: 5px 15px; 
+        self.degreeSplineBox.setStyleSheet(f"""font-size:14px;
+                            padding: 5px 15px;
                             background: {COLOR4};
                             color: {COLOR1};""")
         degreeLayout.addWidget(degreeLabel,1)
@@ -380,19 +380,19 @@ class Window(QMainWindow):
 
     def nearestLayout(self):
         nearestLayout = QVBoxLayout()
-        
+
         # Num. of chunks Text Box
         noSamplesNearestLayout = QVBoxLayout()
         noSamplesNearestLabel = QLabel("Num. of samples")
         self.noSamplesNearestBox = QSpinBox(self)
         self.noSamplesNearestBox.setMinimum(2)
-        self.noSamplesNearestBox.setStyleSheet(f"""font-size:14px; 
-                                padding: 5px 15px; 
+        self.noSamplesNearestBox.setStyleSheet(f"""font-size:14px;
+                                padding: 5px 15px;
                                 background: {COLOR4};
                                 color: {COLOR1};""")
         noSamplesNearestLayout.addWidget(noSamplesNearestLabel,1)
         noSamplesNearestLayout.addWidget(self.noSamplesNearestBox,5)
-        
+
         nearestLayout.addLayout(noSamplesNearestLayout)
         nearestLayout.addSpacerItem(QSpacerItem(10,200,QSizePolicy.Minimum, QSizePolicy.Expanding))
 
@@ -429,23 +429,23 @@ class Window(QMainWindow):
     def colorErrorMapChange(self, color):
         self.statusBar.showMessage("Spectrogram platte color is changed to " + color + ".")
         self.errorMapPlot.set_color(color)
-    
+
     def chunkLatexChange(self, i):
         # Update label
         try:
             latexPixmap = self.latexToLabel(self.latexList[int(i)-1], 13)
             # Update latex text
             self.latex.setPixmap(latexPixmap)
-        except: 
+        except:
             pass
-    
+
     # Nearest
     def changeNoSamplesNearest(self,value):
         self.noSamplesNearest = value - 1
         self.updateAfterEveryChangeNearest()
- 
-    def updateAfterEveryChangeNearest(self):     
-        if len(self.timePlot) > 0:     
+
+    def updateAfterEveryChangeNearest(self):
+        if len(self.timePlot) > 0:
 
             if self.noSamplesNearest >= 2:
                 self.mainPlot.plotSignalOnly()
@@ -474,11 +474,11 @@ class Window(QMainWindow):
     def changeNoSamples(self,value):
         self.noSamples = value-1
         self.updateAfterEveryChangeSpline()
-    
+
     def changeDegreeSpline(self,value):
         self.degreeSpline = value
         self.updateAfterEveryChangeSpline()
-    
+
     def updateAfterEveryChangeSpline(self):
         if len(self.timePlot) > 0:
             if self.noSamples>self.degreeSpline:
@@ -506,11 +506,11 @@ class Window(QMainWindow):
         self.precentageCount.setText(str(value)+'%')
         self.precentage = value
         self.updateAfterEveryChangePoly()
-    
+
     def changeOverLap(self,value):
         self.overlap = value
         self.updateAfterEveryChangePoly()
-    
+
     def changeDegree(self,value):
         self.degree = value
         self.updateAfterEveryChangePoly()
@@ -520,7 +520,7 @@ class Window(QMainWindow):
         self.updateAfterEveryChangePoly()
 
     def updateAfterEveryChangePoly(self):
-        
+
         if len(self.timePlot) > 0:
             # Calc. precentage of data
             change = round(self.precentage / 100 * len(self.timePlot))
@@ -545,7 +545,7 @@ class Window(QMainWindow):
             else :
                 if self.extraPolyMode == False:
                     QMessageBox.information(self , "Extrapolation" , "You are in extrapolation mode now.")
-                
+
                 self.extraPolyMode = True
                 self.noChunksBox.setValue(1)
                 self.degreeBox.setMaximum(100)
@@ -564,17 +564,17 @@ class Window(QMainWindow):
         period = len(xTimePlot) / noChunks
         # Calc. the overlap period
         overlapPeriod = overlap/100 * period
-        
+
         prevOverlapChunkData = list()
-        currOverlapChunkData = list()        
+        currOverlapChunkData = list()
         chunkError = list()
-        
+
         self.latexList = list()
         precentageError = list()
         start, end = 0, 0
         i = 0 # iteration
         n = 1
-        
+
         while i+period-overlapPeriod <= len(xTimePlot):
             # Calculate the start and end of each chunk
             if i != 0:
@@ -587,7 +587,7 @@ class Window(QMainWindow):
                 i+=period
                 startOverlap = int(i-overlapPeriod)
                 endoverlap = int(i)
-            
+
             if i+period-overlapPeriod > len(xTimePlot):
                 end = len(xTimePlot)
 
@@ -612,13 +612,13 @@ class Window(QMainWindow):
                     prevOverlapChunkData = chunkData[startOverlap:endoverlap] # Get last overlap period
                 else:
                     currOverlapChunkData = chunkData[:int(overlapPeriod)] # Get first overlap period
-                                        
+
                     if len(prevOverlapChunkData) != len(currOverlapChunkData):
                         currOverlapChunkData = np.append(currOverlapChunkData,currOverlapChunkData[-1])
-                    
+
                     prevOverlapChunkData = chunkData[startOverlap:endoverlap] # Get last overlap period
                     chunkOverlap = np.mean([prevOverlapChunkData,currOverlapChunkData], axis=0)
-                    
+
                     try:
                         chunkData[:int(overlapPeriod)] = chunkOverlap
                     except:
@@ -627,7 +627,7 @@ class Window(QMainWindow):
                 if end != len(xTimePlot):
                     chunkData = chunkData[:-int(overlapPeriod)]
                     chunkTime = chunkTime[:-int(overlapPeriod)]
-          
+
             self.mainPlot.plotChunks(chunkTime, chunkData)
 
             if end != len(xTimePlot):
@@ -673,11 +673,11 @@ class Window(QMainWindow):
             elif i == 1:
                 latexString += "{:.2f}X".format(coeff[1])
             else:
-                latexString += "{:.2f}X^{}".format(coeff[i],i)                
-            
+                latexString += "{:.2f}X^{}".format(coeff[i],i)
+
             if i != 0 :
                 latexString += "+"
-        
+
             i+=1
         latexString += "$"
 
@@ -729,7 +729,7 @@ class Window(QMainWindow):
 
             if path == "":
                 return
-                    
+
             if fileExtension == "csv(*.csv)":
 
                 if (len(pd.read_csv(path).iloc[:,1].values.tolist()) <= 500):
@@ -742,18 +742,18 @@ class Window(QMainWindow):
                 else:
                     self.mainDataPlot = pd.read_csv(path).iloc[:,1].values.tolist()
                     self.timePlot = pd.read_csv(path).iloc[:,0].values.tolist()
-            
+
             self.mainPlot.clearSignal()
             self.mainPlot.set_data(self.mainDataPlot, self.timePlot)
             self.mainPlot.plotSignal()
             self.noSamplesBox.setMaximum(int(len(self.mainDataPlot)/2))
-        
+
         except:
             logging.error("Can't open a csv file")
 
     # TODO: X AND Y in one function (self, "x or y", value)
     def yAxisChange(self, value):
-        self.yErrorMap = value  
+        self.yErrorMap = value
         self.errorMapPlot.setAxesLabel("y", value)
 
     def xAxisChange(self, value):
@@ -761,7 +761,7 @@ class Window(QMainWindow):
         self.errorMapPlot.setAxesLabel("x", value)
 
     def generateErrorMap(self):
-        
+
         if(len(self.timePlot) > 10):
             # Step 2: Create a QThread object
             self.thread = QThread()
@@ -772,14 +772,14 @@ class Window(QMainWindow):
                 logging.error('The user chose the same for the x and y Axis') 
                 QMessageBox.critical(self , "Error" , "Choose different axis for x and y.")
                 return
-            
+
             if self.yErrorMap == "":
-                logging.error('Not chosen y axis') 
+                logging.error('Not chosen y axis')
                 QMessageBox.critical(self , "Error" , "Choose the y axis!")
                 return
-            
+
             if self.xErrorMap == "":
-                logging.error('Not chosen x axis') 
+                logging.error('Not chosen x axis')
                 QMessageBox.critical(self , "Error" , "Choose the x axis!")
                 return
 
@@ -818,7 +818,7 @@ class Window(QMainWindow):
 
     def reportProgress(self, n):
         self.progressbar.setValue(n)
-    
+
     # Exit the application
     def exit(self):
         exitDlg = QMessageBox.critical(self,
